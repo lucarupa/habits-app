@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 179 pruebas puras + 40 con Flet (219 en `.venv`)
+- **pytest** — 179 pruebas puras + 41 con Flet (220 en `.venv`)
 
 ## Estado de implementación
 
@@ -56,8 +56,8 @@ La ventana se divide en dos zonas sin desplazamiento horizontal: una barra later
 - **Diálogo modal** — “+ Nuevo” y “+ Crear hábito” abren el mismo formulario sin abandonar la
   vista; al guardar se selecciona el hábito recién creado.
 - **Tema** — fondo crema, superficies claras y acentos verdes; ventana inicial de 1120×720
-  con mínimo de 960×600. La ventana y el ejecutable usan el icono de `img/icon.ico`
-  (generado a partir de `img/icon.jpg`).
+  con mínimo de 960×600. La ventana usa `img/icon.ico` en Windows y el bundle de macOS usa
+  `img/icon.icns`; ambos se generan a partir de `img/icon.jpg`.
 
 ### Lógica de dominio implementada
 
@@ -201,6 +201,21 @@ python -m habits.app
 
 La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas, el heatmap de 5 semanas y el panel “Registrar hoy”. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
 
+### Icono de la app en macOS
+
+Flet solo aplica `page.window.icon` en Windows: en macOS el icono y el nombre del Dock
+provienen del bundle del cliente. Para ver el icono personalizado al ejecutar desde el código,
+prepara una vez el bundle (unos 136 MB en `build/macos/`, ignorado por git):
+
+```bash
+python scripts/prepare_macos_bundle.py
+python -m habits.app
+```
+
+El script copia el cliente cacheado de Flet, sustituye su `AppIcon.icns`, renombra la app a
+“Habits App” y la vuelve a firmar en modo ad-hoc. Tras actualizar Flet, ejecútalo de nuevo con
+`--force`. Si borras `build/macos/`, Flet usa su cliente estándar.
+
 ### Datos de demostración
 
 Para ver la aplicación con contenido sin crearlo a mano:
@@ -241,6 +256,12 @@ pip install "flet[cli]" pyinstaller
 flet pack habits/app.py --name "Habits App" --icon img/icon.ico
 ```
 
+En macOS usa el icono `.icns` para que el bundle `.app` muestre el icono en el Dock y en Finder:
+
+```bash
+flet pack habits/app.py --name "Habits App" --icon img/icon.icns
+```
+
 `flet pack` usa PyInstaller internamente. Si aparece el error
 `Please install PyInstaller module to use flet pack command`, instala el módulo con
 `pip install pyinstaller` dentro del mismo entorno virtual. PyInstaller es una herramienta de
@@ -254,8 +275,11 @@ Opciones útiles:
 # Ejecutable con nombre personalizado
 flet pack habits/app.py --name "Habits App"
 
-# Incluir icono personalizado
+# Incluir icono personalizado (Windows)
 flet pack habits/app.py --icon img/icon.ico
+
+# Incluir icono personalizado (macOS)
+flet pack habits/app.py --icon img/icon.icns
 ```
 
 Para más opciones, consulta la [documentación de `flet pack`](https://flet.dev/docs/cli/flet-pack).
@@ -283,20 +307,22 @@ tests/
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
-├── test_window_icon.py # Icono personalizado de la ventana (2 tests, requiere .venv)
+├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
 ├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 scripts/
+├── prepare_macos_bundle.py # Prepara el cliente de Flet con el icono en macOS
 └── seed_demo_data.py # Generador de datos de demostración (2 semanas, 8 iconos)
 data/
 ├── habits.db        # Base de datos SQLite (generada en runtime)
 └── habits.before-seed-*.db # Copias automáticas antes de sembrar datos
 img/
 ├── icon.jpg         # Icono original de la aplicación
-└── icon.ico         # Icono multi-tamaño para la ventana y el ejecutable
+├── icon.ico         # Icono multi-tamaño para la ventana en Windows
+└── icon.icns        # Icono para el bundle .app de macOS
 docs/
 └── constitution.md  # 6 principios innegociables del proyecto
 specs/

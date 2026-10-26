@@ -30,6 +30,15 @@ def test_app_icon_file_exists_and_is_a_valid_ico():
     assert icon_path.read_bytes()[:4] == b"\x00\x00\x01\x00"
 
 
+def test_app_icns_file_exists_and_is_a_valid_icns():
+    """RF-7.3: macOS usa un .icns real para el icono del bundle."""
+    icon_path = Path(APP_ICON_PATH).with_suffix(".icns")
+
+    assert icon_path.name == "icon.icns"
+    assert icon_path.exists()
+    assert icon_path.read_bytes()[:4] == b"icns"
+
+
 def test_configure_page_sets_the_window_icon():
     """RF-7.3: la ventana usa el icono personalizado de la aplicación."""
     page = FakePage()
