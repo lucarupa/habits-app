@@ -269,10 +269,14 @@ specs/
 │   ├── spec.md      # Especificación funcional del MVP
 │   ├── plan.md      # Plan de implementación técnica
 │   └── tasks.md     # Tareas de implementación con checklist
-└── 002-ui-redesign/
-    ├── spec.md      # Especificación del rediseño de interfaz
-    ├── plan.md      # Plan técnico de estadísticas, heatmap e iconos
-    └── tasks.md     # Checklist de implementación del rediseño
+├── 002-ui-redesign/
+│   ├── spec.md      # Especificación del rediseño de interfaz
+│   ├── plan.md      # Plan técnico de estadísticas, heatmap e iconos
+│   └── tasks.md     # Checklist de implementación del rediseño
+└── 003-edit-delete-habits/
+    ├── spec.md      # Especificación de edición y eliminación
+    ├── plan.md      # Plan técnico de actualización, borrado y calendario
+    └── tasks.md     # Checklist de implementación
 ```
 
 ## Documentación
@@ -282,6 +286,9 @@ specs/
 - **Especificación 002** — `specs/002-ui-redesign/spec.md`: rediseño de interfaz con barra lateral, estadísticas y heatmap.
 - **Plan 002** — `specs/002-ui-redesign/plan.md`: modelo de datos del icono, algoritmos de estadísticas y estrategia de tests.
 - **Tareas 002** — `specs/002-ui-redesign/tasks.md`: checklist de implementación del rediseño.
+- **Especificación 003** — `specs/003-edit-delete-habits/spec.md`: edición y eliminación de hábitos, con calendario para la fecha de inicio.
+- **Plan 003** — `specs/003-edit-delete-habits/plan.md`: diseño de la actualización, el borrado transaccional y el calendario.
+- **Tareas 003** — `specs/003-edit-delete-habits/tasks.md`: checklist de implementación de la edición y eliminación.
 - **Plan de implementación** — `specs/001-habits-mvp/plan.md`: arquitectura, modelo de datos y decisiones técnicas.
 - **Tareas** — `specs/001-habits-mvp/tasks.md`: checklist de tareas con criterios de aceptación.
 
