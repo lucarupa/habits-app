@@ -220,9 +220,13 @@ class TestHabitFormDialog:
         sidebar = layout.controls[0]
         detail_column = layout.controls[1]
         header = detail_column.controls[0]
-        empty_panel = detail_column.controls[1]
+        stats_cards = detail_column.controls[1]
+        heatmap = detail_column.controls[2]
+        empty_panel = detail_column.controls[3]
 
         assert empty_panel.visible is True
+        assert stats_cards.visible is False
+        assert heatmap.visible is False
 
         sidebar.on_new()
         assert len(self.page.open_dialogs) == 1
@@ -245,6 +249,10 @@ class TestHabitFormDialog:
 
         assert self.page.open_dialogs == []
         assert empty_panel.visible is False
+        assert stats_cards.visible is True
+        assert heatmap.visible is True
+        assert [card.value for card in stats_cards.cards] == [0, 0, 0]
+        assert len(heatmap.rows) == 7
         assert sidebar.state.is_empty is False
         assert sidebar.state.selected_id is not None
         assert len(sidebar._items_column.controls) == 1

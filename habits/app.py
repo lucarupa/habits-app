@@ -11,10 +11,12 @@ from datetime import date
 from typing import Any, Callable
 
 import flet as ft
+from flet.controls.base_control import skip_field
 
 from habits.core import (
     DEFAULT_ICON,
     Habit,
+    HeatmapDay,
     create_habit,
     calculate_streak,
 )
@@ -22,8 +24,12 @@ from habits.app_state import (
     EMPTY_BUTTON_LABEL,
     EMPTY_SIDEBAR_MESSAGE,
     EMPTY_TITLE,
+    HEATMAP_COMPLETED_LABEL,
+    HEATMAP_NOT_COMPLETED_LABEL,
+    HEATMAP_TITLE,
     AppState,
     SidebarItem,
+    StatCard,
     format_date_label,
     load_app_state,
 )
@@ -38,6 +44,9 @@ from habits.habit_form import (
 from habits.theme import (
     ACCENT_GREEN,
     BACKGROUND,
+    HEATMAP_EMPTY,
+    HEATMAP_FUTURE,
+    HEATMAP_TODAY_BORDER,
     SELECTED_BG,
     SIDEBAR_BG,
     SIDEBAR_WIDTH,
@@ -119,7 +128,7 @@ class Sidebar(ft.Container):
     seleccionado se resalta con fondo y un indicador lateral.
     """
 
-    state: AppState | None = None
+    state: AppState | None = skip_field()
     on_select: Callable[[int], None] | None = None
     on_new: Callable[[], None] | None = None
     _items_column: ft.Column | None = None
@@ -244,7 +253,7 @@ class HabitDetailHeader(ft.Container):
     “Hábito de estudio” y la fecha de inicio en dd/mm/aaaa.
     """
 
-    state: AppState | None = None
+    state: AppState | None = skip_field()
     _body: ft.Column | None = None
 
     def init(self):
@@ -310,6 +319,187 @@ class HabitDetailHeader(ft.Container):
 
 
 @ft.control
+class HabitStatsCards(ft.Container):
+    """Tarjetas de estadísticas del hábito seleccionado.
+
+    Tarea 5.1, RF-3.2 a RF-3.6. Muestra “Racha actual”, “Mejor racha” y
+    “Días registrados” a partir de `AppState.stat_cards()`; un hábito sin
+    registros muestra 0 en las tres.
+    """
+
+    state: AppState | None = skip_field()
+    cards: list[StatCard] | None = skip_field()
+    _cards_row: ft.Row | None = None
+
+    def init(self):
+        self._cards_row = ft.Row(spacing=12)
+        self.content = self._cards_row
+        self.refresh()
+
+    def refresh(self):
+        """Reconstruir las tarjetas desde el estado actual."""
+        if self._cards_row is None:
+            return
+
+        selected = self.state.selected if self.state is not None else None
+        self.visible = selected is not None
+        if selected is None:
+            self.cards = []
+            self._cards_row.controls = []
+            return
+
+        self.cards = self.state.stat_cards()
+        self._cards_row.controls = [
+            self._build_card(card) for card in self.cards
+        ]
+
+    def _build_card(self, card: StatCard) -> ft.Container:
+        """Construir una tarjeta con su título y su valor."""
+        return ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Text(
+                        card.label,
+                        size=12,
+                        color=TEXT_SECONDARY,
+                    ),
+                    ft.Text(
+                        str(card.value),
+                        size=28,
+                        weight="bold",
+                        color=TEXT_PRIMARY,
+                    ),
+                ],
+                spacing=4,
+            ),
+            padding=16,
+            border_radius=12,
+            bgcolor=SURFACE,
+            expand=True,
+        )
+
+
+@ft.control
+class ActivityHeatmap(ft.Container):
+    """Heatmap binario de actividad de las últimas cinco semanas.
+
+    Tarea 5.2, RF-4.1 a RF-4.6. Pinta una cuadrícula de 7 filas de lunes a
+    domingo por 5 columnas de semanas. Los días completados usan el acento
+    verde, hoy lleva borde destacado y los días futuros se ven como no
+    disponibles. Incluye la leyenda “No completado / Completado”.
+    """
+
+    state: AppState | None = skip_field()
+    rows: list[list[HeatmapDay]] | None = skip_field()
+    _body: ft.Column | None = None
+    _grid: ft.Column | None = None
+
+    def init(self):
+        self.padding = 16
+        self.border_radius = 12
+        self.bgcolor = SURFACE
+        self._body = ft.Column(spacing=12)
+        self.content = self._body
+        self.refresh()
+
+    def refresh(self):
+        """Reconstruir la cuadrícula y la leyenda desde el estado actual."""
+        if self._body is None:
+            return
+
+        selected = self.state.selected if self.state is not None else None
+        self.visible = selected is not None
+        if selected is None:
+            self.rows = []
+            self._body.controls = []
+            return
+
+        self.rows = self.state.heatmap_rows()
+        self._grid = ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[self._build_cell(cell) for cell in row],
+                    spacing=4,
+                )
+                for row in self.rows
+            ],
+            spacing=4,
+        )
+        self._body.controls = [
+            ft.Text(
+                HEATMAP_TITLE,
+                size=16,
+                weight="bold",
+                color=TEXT_PRIMARY,
+            ),
+            self._grid,
+            self._build_legend(),
+        ]
+
+    def _build_cell(self, cell: HeatmapDay) -> ft.Container:
+        """Construir una celda con el color y el borde que le corresponden."""
+        if cell.is_future:
+            bgcolor = HEATMAP_FUTURE
+        elif cell.completed:
+            bgcolor = ACCENT_GREEN
+        else:
+            bgcolor = HEATMAP_EMPTY
+
+        border = (
+            ft.Border.all(2, HEATMAP_TODAY_BORDER)
+            if cell.is_today
+            else None
+        )
+
+        return ft.Container(
+            width=22,
+            height=22,
+            border_radius=4,
+            bgcolor=bgcolor,
+            border=border,
+            tooltip=self._cell_tooltip(cell),
+        )
+
+    def _cell_tooltip(self, cell: HeatmapDay) -> str:
+        """Describir la fecha y el estado de una celda."""
+        if cell.is_future:
+            status = HEATMAP_NOT_COMPLETED_LABEL
+        elif cell.completed:
+            status = HEATMAP_COMPLETED_LABEL
+        else:
+            status = HEATMAP_NOT_COMPLETED_LABEL
+        return f"{format_date_label(cell.date)} · {status}"
+
+    def _build_legend(self) -> ft.Row:
+        """Construir la leyenda “No completado / Completado”."""
+        return ft.Row(
+            controls=[
+                self._legend_item(
+                    HEATMAP_NOT_COMPLETED_LABEL, HEATMAP_EMPTY
+                ),
+                self._legend_item(HEATMAP_COMPLETED_LABEL, ACCENT_GREEN),
+            ],
+            spacing=16,
+        )
+
+    def _legend_item(self, label: str, color: str) -> ft.Row:
+        """Construir un elemento de la leyenda con su muestra de color."""
+        return ft.Row(
+            controls=[
+                ft.Container(
+                    width=12,
+                    height=12,
+                    border_radius=3,
+                    bgcolor=color,
+                ),
+                ft.Text(label, size=12, color=TEXT_SECONDARY),
+            ],
+            spacing=6,
+            vertical_alignment="center",
+        )
+
+
+@ft.control
 class EmptyDetailPanel(ft.Container):
     """Estado vacío del panel principal cuando no hay hábitos.
 
@@ -318,7 +508,7 @@ class EmptyDetailPanel(ft.Container):
     menos un hábito.
     """
 
-    state: AppState | None = None
+    state: AppState | None = skip_field()
     on_create: Callable[[], None] | None = None
 
     def init(self):
@@ -895,10 +1085,10 @@ def configure_page(page: ft.Page) -> None:
 def main(page: ft.Page, db_path: str = "data/habits.db"):
     """Punto de entrada de la aplicación Flet.
 
-    Tareas 3.5 y 4.1 a 4.4: aplica el tema, monta el layout de dos zonas y
-    conecta el botón “+ Nuevo” y el CTA del estado vacío con el mismo diálogo
-    modal de creación. Al guardar, recarga el estado, actualiza la barra
-    lateral y selecciona el hábito recién creado.
+    Tareas 3.5, 4.1 a 4.4 y 5.1 a 5.3: aplica el tema, monta el layout de dos
+    zonas, conecta la creación modal y muestra las estadísticas y el heatmap
+    del hábito seleccionado. Al recargar el estado, todas las zonas del
+    detalle se actualizan sin reiniciar la aplicación.
 
     Args:
         page: Página Flet proporcionada por `ft.run`.
@@ -910,10 +1100,12 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
     state = load_app_state(db_path)
     sidebar = Sidebar(state=state)
     header = HabitDetailHeader(state=state)
+    stats_cards = HabitStatsCards(state=state)
+    heatmap = ActivityHeatmap(state=state)
     empty_panel = EmptyDetailPanel(state=state)
 
     detail_column = ft.Column(
-        controls=[header, empty_panel],
+        controls=[header, stats_cards, heatmap, empty_panel],
         spacing=16,
         expand=True,
         scroll=ft.ScrollMode.AUTO,
@@ -942,15 +1134,21 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
 
         sidebar.state = state
         header.state = state
+        stats_cards.state = state
+        heatmap.state = state
         empty_panel.state = state
         sidebar.refresh()
         header.refresh()
+        stats_cards.refresh()
+        heatmap.refresh()
         empty_panel.refresh()
         page.update()
 
     def on_select(_habit_id: int) -> None:
-        """Actualizar el detalle al cambiar de hábito (RF-1.4)."""
+        """Actualizar el detalle al cambiar de hábito (RF-1.4, RF-3, RF-4)."""
         header.refresh()
+        stats_cards.refresh()
+        heatmap.refresh()
         empty_panel.refresh()
         page.update()
 

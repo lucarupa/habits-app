@@ -9,13 +9,27 @@ cálculos en `core.py`. No importa Flet ni contiene lógica de presentación
 from dataclasses import dataclass, field
 from datetime import date
 
-from habits.core import Habit, HabitStats, get_habit_stats
+from habits.core import (
+    Habit,
+    HabitStats,
+    HeatmapDay,
+    build_activity_heatmap,
+    get_habit_stats,
+)
 from habits.storage import get_completions_db, list_all_habits_db
 
 HABIT_SUBTITLE = "Hábito de estudio"
 EMPTY_SIDEBAR_MESSAGE = "No hay hábitos aún"
 EMPTY_TITLE = "Crea tu primer hábito para empezar tu racha"
 EMPTY_BUTTON_LABEL = "+ Crear hábito"
+
+STAT_CURRENT_STREAK_LABEL = "Racha actual"
+STAT_BEST_STREAK_LABEL = "Mejor racha"
+STAT_REGISTERED_DAYS_LABEL = "Días registrados"
+
+HEATMAP_TITLE = "Actividad (últimas 5 semanas)"
+HEATMAP_COMPLETED_LABEL = "Completado"
+HEATMAP_NOT_COMPLETED_LABEL = "No completado"
 
 
 def format_date_label(value: date) -> str:
@@ -98,6 +112,19 @@ class EmptyState:
     button_label: str
 
 
+@dataclass(frozen=True)
+class StatCard:
+    """Datos de una tarjeta de estadísticas.
+
+    Atributos:
+        label: Título visible de la tarjeta.
+        value: Valor numérico de la estadística.
+    """
+
+    label: str
+    value: int
+
+
 @dataclass
 class AppState:
     """Estado completo de la aplicación en un momento dado.
@@ -105,10 +132,12 @@ class AppState:
     Atributos:
         habits: Hábitos ordenados por racha descendente y nombre ascendente.
         selected_id: ID del hábito seleccionado, o None si no hay hábitos.
+        today: Fecha usada para calcular estadísticas y heatmap.
     """
 
     habits: list[HabitState] = field(default_factory=list)
     selected_id: int | None = None
+    today: date = field(default_factory=date.today)
 
     @property
     def selected(self) -> HabitState | None:
@@ -189,6 +218,71 @@ class AppState:
             start_date_label=format_date_label(selected.habit.start_date),
         )
 
+    def stat_cards(self) -> list[StatCard]:
+        """Construir las tarjetas de estadísticas del hábito seleccionado.
+
+        Returns:
+            Una lista con “Racha actual”, “Mejor racha” y “Días registrados”,
+            o una lista vacía si no hay hábito seleccionado (RF-3.2 a RF-3.5).
+        """
+        selected = self.selected
+        if selected is None:
+            return []
+
+        return [
+            StatCard(
+                label=STAT_CURRENT_STREAK_LABEL,
+                value=selected.stats.current_streak,
+            ),
+            StatCard(
+                label=STAT_BEST_STREAK_LABEL,
+                value=selected.stats.best_streak,
+            ),
+            StatCard(
+                label=STAT_REGISTERED_DAYS_LABEL,
+                value=selected.stats.registered_days,
+            ),
+        ]
+
+    def heatmap_cells(self, weeks: int = 5) -> list[HeatmapDay]:
+        """Construir las celdas del heatmap del hábito seleccionado.
+
+        Args:
+            weeks: Cantidad de semanas calendario a mostrar.
+
+        Returns:
+            Las celdas del heatmap, o una lista vacía si no hay hábito
+            seleccionado (RF-4.1 a RF-4.6).
+        """
+        selected = self.selected
+        if selected is None:
+            return []
+
+        return build_activity_heatmap(
+            selected.completed_dates,
+            self.today,
+            weeks=weeks,
+        )
+
+    def heatmap_rows(self, weeks: int = 5) -> list[list[HeatmapDay]]:
+        """Agrupar las celdas del heatmap en 7 filas de lunes a domingo.
+
+        Args:
+            weeks: Cantidad de semanas calendario a mostrar.
+
+        Returns:
+            Siete filas, cada una con una celda por semana en orden
+            cronológico (RF-4.2).
+        """
+        cells = self.heatmap_cells(weeks=weeks)
+        if not cells:
+            return []
+
+        rows: list[list[HeatmapDay]] = [[] for _ in range(7)]
+        for cell in cells:
+            rows[cell.weekday].append(cell)
+        return rows
+
 
 def load_app_state(
     db_path: str = "data/habits.db",
@@ -234,4 +328,8 @@ def load_app_state(
     )
 
     selected_id = habits_state[0].habit.id if habits_state else None
-    return AppState(habits=habits_state, selected_id=selected_id)
+    return AppState(
+        habits=habits_state,
+        selected_id=selected_id,
+        today=current_day,
+    )

@@ -7,6 +7,8 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Crear un hábito** con nombre (máx. 60 caracteres) y fecha de inicio opcional.
 - **Marcar un hábito como completado** para el día actual, con advertencia si ya fue registrado.
 - **Listar hábitos** ordenados por racha de días consecutivos descendente, con desempate alfabético.
+- **Ver estadísticas** del hábito seleccionado: racha actual, mejor racha y días registrados.
+- **Heatmap de actividad** de las últimas 5 semanas, con días completados, no completados y futuros.
 - **Cálculo de racha estricta**: la racha cuenta hacia atrás desde hoy; si el último día no es hoy, la racha es cero.
 
 ## Stack tecnológico
@@ -14,7 +16,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 127 pruebas puras + 10 de interfaz con Flet (137 en `.venv`)
+- **pytest** — 139 pruebas puras + 23 de interfaz con Flet (162 en `.venv`)
 
 ## Estado de implementación
 
@@ -58,8 +60,10 @@ Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 Las siguientes piezas en `habits/app_state.py` están completas y testeadas:
 
 - `load_app_state(db_path, today)` — obtiene hábitos y fechas desde `storage.py`, calcula estadísticas con `core.py`, ordena por racha descendente y nombre ascendente, y selecciona el primer hábito.
-- `AppState` — mantiene la lista de hábitos con sus estadísticas y el ID seleccionado.
+- `AppState` — mantiene la lista de hábitos, el ID seleccionado y la fecha usada para las estadísticas y el heatmap.
 - `HabitState` — agrupa un hábito, sus estadísticas y sus fechas completadas.
+- `AppState.stat_cards()` — devuelve las tres tarjetas con sus valores.
+- `AppState.heatmap_cells()` / `heatmap_rows()` — construyen las 35 celdas y las agrupan en 7 filas de lunes a domingo por 5 semanas.
 
 Este módulo no importa Flet: la interfaz solo consume el estado ya calculado (RFN-3).
 
@@ -102,6 +106,14 @@ En `habits/app.py`:
 - `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, fecha opcional e icono; ante un error permanece abierto y al guardar se cierra.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 
+### Estadísticas y heatmap
+
+- `StatCard` — modelo puro con el título y el valor de cada tarjeta.
+- `HabitStatsCards` — muestra “Racha actual”, “Mejor racha” y “Días registrados”; sin registros, las tres valen 0.
+- `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados y la leyenda “No completado / Completado”.
+- `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap y estado vacío. Al registrar el día actual, las tres zonas se actualizan sin reiniciar la aplicación.
+- Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `core.py` y `app_state.py` nunca reciben atributos internos de control.
+
 ## Requisitos
 
 - Python 3.12 o superior
@@ -122,7 +134,7 @@ pip install -r requirements.txt
 python -m habits.app
 ```
 
-La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
+La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas y el heatmap de 5 semanas. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
 
 ## Ejecutar tests
 
@@ -130,7 +142,7 @@ La aplicación se abre en una ventana de escritorio con la barra lateral de háb
 pytest -q
 ```
 
-`tests/test_habit_dialog.py` requiere Flet y se omite automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
+`tests/test_habit_dialog.py`, `tests/test_detail_widgets.py` y `tests/test_serialization.py` requieren Flet y se omiten automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
 
 ```bash
 .venv\Scripts\python.exe -m pytest -q
@@ -182,7 +194,10 @@ tests/
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (35 tests)
-└── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
+├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
+├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
+├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (8 tests, requiere .venv)
+└── test_serialization.py # Regresión de serialización Flet (5 tests, requiere .venv)
 data/
 └── habits.db        # Base de datos SQLite (generada en runtime)
 docs/

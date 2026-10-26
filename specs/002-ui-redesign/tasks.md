@@ -120,18 +120,18 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 5: Estadísticas y heatmap
 
-- [ ] **Tarea 5.1:** Construir las tarjetas de estadísticas
+- [x] **Tarea 5.1:** Construir las tarjetas de estadísticas
   - **RF:** RF-3.2, RF-3.3, RF-3.4, RF-3.5, RF-3.6
   - **Hecho cuando:** El detalle muestra “Racha actual”, “Mejor racha” y “Días registrados”
     usando `get_habit_stats`; un hábito sin registros muestra 0 en las tres tarjetas.
 
-- [ ] **Tarea 5.2:** Construir el heatmap de 5 semanas
+- [x] **Tarea 5.2:** Construir el heatmap de 5 semanas
   - **RF:** RF-4.1, RF-4.2, RF-4.3, RF-4.4, RF-4.5, RF-4.6
   - **Hecho cuando:** Se pinta una cuadrícula de 7 filas por 5 columnas; los días completados
     se distinguen de los no completados; hoy está resaltado; los días futuros se ven como no
     disponibles; la leyenda “No completado / Completado” es visible.
 
-- [ ] **Tarea 5.3:** Refrescar estadísticas y heatmap tras un registro
+- [x] **Tarea 5.3:** Refrescar estadísticas y heatmap tras un registro
   - **RF:** RF-3.6, RF-4.7
   - **Hecho cuando:** Al registrar hoy, las tarjetas, la celda de hoy, la leyenda y la racha
     de la barra lateral se actualizan sin reiniciar la aplicación.
