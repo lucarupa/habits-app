@@ -188,6 +188,19 @@ python -m habits.app
 
 La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas, el heatmap de 5 semanas y el panel “Registrar hoy”. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
 
+### Datos de demostración
+
+Para ver la aplicación con contenido sin crearlo a mano:
+
+```bash
+.venv\Scripts\python.exe scripts/seed_demo_data.py
+```
+
+El script crea un hábito por cada icono disponible y registros de las últimas dos semanas con
+rachas variadas. Antes de reemplazar los datos existentes guarda una copia en
+`data/habits.before-seed-AAAAMMDD-HHMMSS.db`. Se puede fijar la fecha de referencia con
+`--today 2026-10-26` y la base de datos con `--db ruta/habits.db`.
+
 ## Ejecutar tests
 
 ```bash
@@ -263,8 +276,11 @@ tests/
 ├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
+scripts/
+└── seed_demo_data.py # Generador de datos de demostración (2 semanas, 8 iconos)
 data/
-└── habits.db        # Base de datos SQLite (generada en runtime)
+├── habits.db        # Base de datos SQLite (generada en runtime)
+└── habits.before-seed-*.db # Copias automáticas antes de sembrar datos
 img/
 ├── icon.jpg         # Icono original de la aplicación
 └── icon.ico         # Icono multi-tamaño para la ventana y el ejecutable
