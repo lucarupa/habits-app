@@ -7,6 +7,7 @@ Persistencia en SQLite local (`habits/storage.py`).
 
 ## Estilo
 - Python 3.12+, type hints en todas las funciones públicas.
+- flet 1.0.5+.
 - Solo biblioteca estándar (pytest únicamente para tests).
 - Identificadores en inglés; mensajes de usuario en español.
 

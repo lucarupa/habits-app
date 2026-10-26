@@ -64,29 +64,29 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 3: Estructura visual y navegación (`app.py`)
 
-- [ ] **Tarea 3.1:** Crear el cargador de estado de la aplicación
+- [x] **Tarea 3.1:** Crear el cargador de estado de la aplicación
   - **RF:** RF-1.1, RF-1.3, RF-1.5, RFN-3
   - **Hecho cuando:** La app obtiene hábitos y fechas desde `storage`, calcula rachas y
     estadísticas con `core`, y mantiene el identificador del hábito seleccionado sin lógica
     duplicada en los widgets.
 
-- [ ] **Tarea 3.2:** Construir la barra lateral con “Mis hábitos”, “+ Nuevo” y lista de hábitos
+- [x] **Tarea 3.2:** Construir la barra lateral con “Mis hábitos”, “+ Nuevo” y lista de hábitos
   - **RF:** RF-1.2, RF-1.4, RF-1.6, RF-7.2
   - **Hecho cuando:** Cada elemento muestra icono, nombre y racha; el orden es racha
     descendente con desempate alfabético; el seleccionado se resalta y se puede cambiar.
 
-- [ ] **Tarea 3.3:** Construir el encabezado del panel de detalle
+- [x] **Tarea 3.3:** Construir el encabezado del panel de detalle
   - **RF:** RF-3.1, RF-7.4
   - **Hecho cuando:** El detalle muestra icono, nombre, “Hábito de estudio” y fecha de inicio
     en dd/mm/aaaa del hábito seleccionado.
 
-- [ ] **Tarea 3.4:** Construir el estado vacío
+- [x] **Tarea 3.4:** Construir el estado vacío
   - **RF:** RF-6.1, RF-6.2, RF-6.4
   - **Hecho cuando:** Sin hábitos, la barra lateral muestra “No hay hábitos aún” y el panel
     principal muestra ilustración, título y botón “+ Crear hábito”; al crear el primero, el
     estado desaparece.
 
-- [ ] **Tarea 3.5:** Aplicar el tema visual y el tamaño de ventana
+- [x] **Tarea 3.5:** Aplicar el tema visual y el tamaño de ventana
   - **RF:** RF-7.1, RF-7.3, RF-7.5
   - **Hecho cuando:** La interfaz usa fondo crema, superficies claras y acentos verdes; la
     ventana permite ver barra lateral y detalle sin scroll horizontal; los textos están en
@@ -96,22 +96,22 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 4: Creación de hábitos con diálogo modal
 
-- [ ] **Tarea 4.1:** Crear el diálogo modal con nombre, fecha e icono
+- [x] **Tarea 4.1:** Crear el diálogo modal con nombre, fecha e icono
   - **RF:** RF-2.1, RF-2.6
   - **Hecho cuando:** “+ Nuevo” y “+ Crear hábito” abren el mismo diálogo; el selector muestra
     el catálogo de iconos y permite elegir uno o dejar el valor por defecto.
 
-- [ ] **Tarea 4.2:** Implementar las validaciones del formulario
+- [x] **Tarea 4.2:** Implementar las validaciones del formulario
   - **RF:** RF-2.2, RF-2.3, RF-2.5, RF-2.10
   - **Hecho cuando:** Nombre vacío, nombre >60, fecha inválida y fecha futura producen el
     mensaje correcto; el diálogo no se cierra ante error y no se crea el hábito.
 
-- [ ] **Tarea 4.3:** Persistir la creación y refrescar la interfaz
+- [x] **Tarea 4.3:** Persistir la creación y refrescar la interfaz
   - **RF:** RF-2.7, RF-2.9
   - **Hecho cuando:** Al guardar, el hábito se persiste con su icono, el diálogo se cierra, la
     barra lateral se actualiza y el nuevo hábito queda seleccionado.
 
-- [ ] **Tarea 4.4:** Conectar el CTA del estado vacío con el diálogo
+- [x] **Tarea 4.4:** Conectar el CTA del estado vacío con el diálogo
   - **RF:** RF-6.3
   - **Hecho cuando:** El botón “+ Crear hábito” del estado vacío abre el mismo modal y, tras
     crear, se muestra el detalle del hábito.

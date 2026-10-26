@@ -13,9 +13,41 @@ from typing import Any, Callable
 import flet as ft
 
 from habits.core import (
+    DEFAULT_ICON,
     Habit,
     create_habit,
     calculate_streak,
+)
+from habits.app_state import (
+    EMPTY_BUTTON_LABEL,
+    EMPTY_SIDEBAR_MESSAGE,
+    EMPTY_TITLE,
+    AppState,
+    SidebarItem,
+    format_date_label,
+    load_app_state,
+)
+from habits.habit_form import (
+    ICON_CATALOG,
+    ICON_LABELS,
+    MAX_NAME_LENGTH,
+    CreateHabitResult,
+    HabitFormData,
+    create_habit_from_form,
+)
+from habits.theme import (
+    ACCENT_GREEN,
+    BACKGROUND,
+    SELECTED_BG,
+    SIDEBAR_BG,
+    SIDEBAR_WIDTH,
+    SURFACE,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    WINDOW_HEIGHT,
+    WINDOW_MIN_HEIGHT,
+    WINDOW_MIN_WIDTH,
+    WINDOW_WIDTH,
 )
 from habits.storage import (
     init_db,
@@ -25,6 +57,45 @@ from habits.storage import (
     mark_completed_db,
     is_completed_today_db,
 )
+
+ICON_BY_KEY = {
+    "book": ft.Icons.MENU_BOOK,
+    "code": ft.Icons.CODE,
+    "science": ft.Icons.SCIENCE,
+    "language": ft.Icons.TRANSLATE,
+    "music": ft.Icons.MUSIC_NOTE,
+    "art": ft.Icons.PALETTE,
+    "math": ft.Icons.CALCULATE,
+    "fitness": ft.Icons.FITNESS_CENTER,
+}
+DEFAULT_SIDEBAR_ICON = ft.Icons.MENU_BOOK
+
+
+def icon_for_habit(icon_key: str):
+    """Traducir una clave semántica de icono a un icono de Flet.
+
+    Args:
+        icon_key: Clave guardada en la base de datos.
+
+    Returns:
+        El icono de Flet correspondiente, o el icono por defecto.
+    """
+    return ICON_BY_KEY.get(icon_key, DEFAULT_SIDEBAR_ICON)
+
+
+def format_streak_label(streak: int) -> str:
+    """Formatear la racha para mostrarla en la barra lateral.
+
+    Args:
+        streak: Racha actual en días.
+
+    Returns:
+        Texto en español con la racha, o "Sin racha" si es 0.
+    """
+    if streak == 0:
+        return "Sin racha"
+    suffix = "s" if streak != 1 else ""
+    return f"🔥 {streak} día{suffix}"
 
 
 def format_date_display(d: date) -> str:
@@ -36,7 +107,400 @@ def format_date_display(d: date) -> str:
     Returns:
         La fecha como cadena en formato dd/mm/aaaa.
     """
-    return d.strftime("%d/%m/%Y")
+    return format_date_label(d)
+
+
+@ft.control
+class Sidebar(ft.Container):
+    """Barra lateral con “Mis hábitos”, “+ Nuevo” y la lista de hábitos.
+
+    Tarea 3.2, RF-1.2, RF-1.4, RF-1.6, RF-7.2. Muestra el icono, el nombre y
+    la racha de cada hábito; el orden proviene de `AppState`. El hábito
+    seleccionado se resalta con fondo y un indicador lateral.
+    """
+
+    state: AppState | None = None
+    on_select: Callable[[int], None] | None = None
+    on_new: Callable[[], None] | None = None
+    _items_column: ft.Column | None = None
+
+    def init(self):
+        self.width = SIDEBAR_WIDTH
+        self.padding = 16
+        self.border_radius = 12
+        self.bgcolor = SIDEBAR_BG
+        self._items_column = ft.Column(spacing=4)
+        self.content = ft.Column(
+            controls=[
+                ft.Row(
+                    controls=[
+                        ft.Text("Mis hábitos", size=20, weight="bold"),
+                        ft.Container(expand=True),
+                        ft.Button(
+                            content="+ Nuevo",
+                            icon=ft.Icons.ADD,
+                            on_click=self._handle_new,
+                        ),
+                    ],
+                    alignment="spaceBetween",
+                    vertical_alignment="center",
+                ),
+                self._items_column,
+            ],
+            spacing=12,
+        )
+        self.refresh()
+
+    def refresh(self):
+        """Reconstruir la lista de hábitos desde el estado actual."""
+        if self._items_column is None:
+            return
+
+        items = self.state.sidebar_items() if self.state is not None else []
+        if not items:
+            self._items_column.controls = [
+                ft.Text(
+                    EMPTY_SIDEBAR_MESSAGE,
+                    size=12,
+                    color=TEXT_SECONDARY,
+                )
+            ]
+            return
+
+        self._items_column.controls = [
+            self._build_item(item) for item in items
+        ]
+
+    def _handle_new(self, event):
+        """Notificar que el usuario pidió crear un hábito (RF-1.6)."""
+        if self.on_new is not None:
+            self.on_new()
+
+    def _select_habit(self, habit_id: int):
+        """Seleccionar un hábito y notificar al panel de detalle (RF-1.4)."""
+        if self.state is None:
+            return
+
+        self.state.select(habit_id)
+        self.refresh()
+        if self.on_select is not None:
+            self.on_select(habit_id)
+
+    def _build_item(self, item: SidebarItem) -> ft.Container:
+        """Construir el control de un hábito de la barra lateral (RF-1.2)."""
+        selected = item.selected
+        indicator_color = ACCENT_GREEN if selected else "transparent"
+        text_color = ACCENT_GREEN if selected else TEXT_PRIMARY
+
+        return ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.Container(
+                        width=4,
+                        height=40,
+                        bgcolor=indicator_color,
+                        border_radius=2,
+                    ),
+                    ft.Icon(
+                        icon_for_habit(item.icon),
+                        size=18,
+                        color=text_color,
+                    ),
+                    ft.Column(
+                        controls=[
+                            ft.Text(
+                                item.name,
+                                size=14,
+                                weight="medium",
+                                color=text_color,
+                            ),
+                            ft.Text(
+                                format_streak_label(item.streak),
+                                size=12,
+                                color=TEXT_SECONDARY,
+                            ),
+                        ],
+                        spacing=2,
+                        expand=True,
+                    ),
+                ],
+                spacing=10,
+                vertical_alignment="center",
+            ),
+            padding=8,
+            border_radius=8,
+            bgcolor=SELECTED_BG if selected else None,
+            on_click=lambda event, habit_id=item.habit_id: self._select_habit(
+                habit_id
+            ),
+        )
+
+
+@ft.control
+class HabitDetailHeader(ft.Container):
+    """Encabezado del panel de detalle del hábito seleccionado.
+
+    Tarea 3.3, RF-3.1, RF-7.4. Muestra el icono, el nombre, el subtítulo
+    “Hábito de estudio” y la fecha de inicio en dd/mm/aaaa.
+    """
+
+    state: AppState | None = None
+    _body: ft.Column | None = None
+
+    def init(self):
+        self.padding = 16
+        self.border_radius = 12
+        self.bgcolor = SURFACE
+        self._body = ft.Column(spacing=8)
+        self.content = self._body
+        self.refresh()
+
+    def refresh(self):
+        """Reconstruir el encabezado desde el estado actual."""
+        if self._body is None:
+            return
+
+        header = (
+            self.state.detail_header() if self.state is not None else None
+        )
+        if header is None:
+            self._body.controls = []
+            return
+
+        self._body.controls = [
+            ft.Row(
+                controls=[
+                    ft.Container(
+                        content=ft.Icon(
+                            icon_for_habit(header.icon),
+                            size=28,
+                            color=ACCENT_GREEN,
+                        ),
+                        padding=10,
+                        border_radius=10,
+                        bgcolor=SELECTED_BG,
+                    ),
+                    ft.Column(
+                        controls=[
+                            ft.Text(
+                                header.name,
+                                size=24,
+                                weight="bold",
+                                color=TEXT_PRIMARY,
+                            ),
+                            ft.Text(
+                                header.subtitle,
+                                size=14,
+                                color=TEXT_SECONDARY,
+                            ),
+                        ],
+                        spacing=2,
+                        expand=True,
+                    ),
+                ],
+                spacing=12,
+                vertical_alignment="center",
+            ),
+            ft.Text(
+                value=f"Inicio: {header.start_date_label}",
+                size=12,
+                color=TEXT_SECONDARY,
+            ),
+        ]
+
+
+@ft.control
+class EmptyDetailPanel(ft.Container):
+    """Estado vacío del panel principal cuando no hay hábitos.
+
+    Tarea 3.4, RF-6.2, RF-6.4. Muestra una ilustración, el título de
+    bienvenida y el botón “+ Crear hábito”. Se oculta en cuanto existe al
+    menos un hábito.
+    """
+
+    state: AppState | None = None
+    on_create: Callable[[], None] | None = None
+
+    def init(self):
+        self.expand = True
+        self.padding = 32
+        self.content = ft.Column(
+            controls=[
+                ft.Icon(
+                    ft.Icons.SELF_IMPROVEMENT,
+                    size=64,
+                    color=ACCENT_GREEN,
+                ),
+                ft.Text(
+                    EMPTY_TITLE,
+                    size=20,
+                    weight="bold",
+                    text_align="center",
+                    color=TEXT_PRIMARY,
+                ),
+                ft.Button(
+                    content=EMPTY_BUTTON_LABEL,
+                    icon=ft.Icons.ADD,
+                    on_click=self._handle_create,
+                ),
+            ],
+            horizontal_alignment="center",
+            alignment="center",
+            spacing=16,
+        )
+        self.refresh()
+
+    def refresh(self):
+        """Mostrar el estado vacío solo cuando no hay hábitos."""
+        empty = (
+            self.state.empty_state() if self.state is not None else None
+        )
+        self.visible = empty is not None
+
+    def _handle_create(self, event):
+        """Abrir el diálogo de creación desde el estado vacío (RF-6.3)."""
+        if self.on_create is not None:
+            self.on_create()
+
+
+class HabitFormDialog:
+    """Diálogo modal para crear un hábito sin abandonar la vista actual.
+
+    Tareas 4.1 a 4.3, RF-2.1 a RF-2.7, RF-2.9 y RF-2.10. Contiene el nombre
+    obligatorio, la fecha opcional en dd/mm/aaaa y el selector de icono. La
+    validación y la persistencia se delegan en `habit_form.py`; ante un error
+    el diálogo permanece abierto y, al guardar correctamente, se cierra y
+    notifica el hábito creado.
+    """
+
+    def __init__(
+        self,
+        page: ft.Page,
+        on_saved: Callable[[CreateHabitResult], None] | None = None,
+        db_path: str = "data/habits.db",
+        today: date | None = None,
+    ) -> None:
+        """Construir el diálogo y sus controles.
+
+        Args:
+            page: Página Flet sobre la que se muestra el diálogo.
+            on_saved: Callback invocado con el hábito recién creado.
+            db_path: Ruta a la base de datos SQLite.
+            today: Fecha actual; permite fijarla en tests.
+        """
+        self.page = page
+        self.on_saved = on_saved
+        self.db_path = db_path
+        self.today = today
+
+        self.name_field = ft.TextField(
+            label="Nombre del hábito",
+            hint_text="Ej: Estudiar Python 30 minutos",
+            max_length=MAX_NAME_LENGTH,
+            autofocus=True,
+            border_radius=8,
+        )
+        self.date_field = ft.TextField(
+            label="Fecha de inicio (opcional)",
+            hint_text="dd/mm/aaaa",
+            max_length=10,
+            border_radius=8,
+        )
+        self.icon_dropdown = ft.Dropdown(
+            label="Icono",
+            value=DEFAULT_ICON,
+            border_radius=8,
+            options=[
+                ft.DropdownOption(
+                    key=icon,
+                    text=ICON_LABELS[icon],
+                    leading_icon=icon_for_habit(icon),
+                )
+                for icon in ICON_CATALOG
+            ],
+        )
+        self.error_text = ft.Text(
+            value="",
+            size=14,
+            color="red",
+            visible=False,
+        )
+
+        self.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Nuevo hábito", size=20, weight="bold"),
+            content=ft.Column(
+                controls=[
+                    self.name_field,
+                    self.date_field,
+                    self.icon_dropdown,
+                    self.error_text,
+                ],
+                spacing=12,
+                tight=True,
+                width=420,
+            ),
+            actions=[
+                ft.TextButton(
+                    content="Cancelar",
+                    on_click=self.close,
+                ),
+                ft.Button(
+                    content="Guardar",
+                    icon=ft.Icons.CHECK,
+                    on_click=self.submit,
+                ),
+            ],
+            actions_alignment="end",
+        )
+
+    def open(self) -> None:
+        """Abrir el diálogo con un formulario limpio (RF-2.1)."""
+        self.name_field.value = ""
+        self.date_field.value = ""
+        self.icon_dropdown.value = DEFAULT_ICON
+        self.error_text.value = ""
+        self.error_text.visible = False
+        self.page.show_dialog(self.dialog)
+
+    def close(self, event=None) -> None:
+        """Cerrar el diálogo sin crear nada."""
+        self.page.pop_dialog()
+
+    def submit(self, event=None) -> None:
+        """Validar y guardar el hábito.
+
+        Si la validación falla, muestra el mensaje y mantiene el diálogo
+        abierto (RF-2.2, RF-2.3, RF-2.10). Si tiene éxito, persiste el hábito,
+        cierra el diálogo y notifica el resultado (RF-2.7, RF-2.9).
+        """
+        data = HabitFormData(
+            name=self.name_field.value or "",
+            start_date=self.date_field.value or "",
+            icon=self.icon_dropdown.value,
+        )
+
+        try:
+            result = create_habit_from_form(
+                data,
+                db_path=self.db_path,
+                today=self.today,
+            )
+        except ValueError as exc:
+            self._show_error(str(exc))
+            return
+
+        self._show_error("")
+        self.page.pop_dialog()
+        if self.on_saved is not None:
+            self.on_saved(result)
+
+    def _show_error(self, message: str) -> None:
+        """Mostrar u ocultar el mensaje de error sin cerrar el diálogo."""
+        self.error_text.value = message
+        self.error_text.visible = bool(message)
+        if self.dialog.open:
+            self.page.update()
 
 
 @ft.control
@@ -410,69 +874,107 @@ def create_main_view(
     )
 
 
-def main(page: ft.Page):
-    """Punto de entrada de la aplicación Flet.
+def configure_page(page: ft.Page) -> None:
+    """Aplicar el tema claro y el tamaño de ventana de escritorio.
 
-    Crea la ventana principal con navegación entre vistas.
-    Tarea 6.1: Infraestructura de UI.
-    Tarea 6.2: Conecta el callback de creación.
-    Tarea 6.3: Conecta el callback de marcado y refresco de lista.
+    Tarea 3.5, RF-7.1, RF-7.3. Usa fondo crema, superficies claras y acentos
+    verdes, y abre la ventana con espacio suficiente para la barra lateral y
+    el panel de detalle.
     """
     page.title = "Habits App"
-    page.window_width = 400
-    page.window_height = 500
+    page.bgcolor = BACKGROUND
+    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme = ft.Theme(color_scheme_seed=ACCENT_GREEN)
+    page.padding = 0
+    page.window.width = WINDOW_WIDTH
+    page.window.height = WINDOW_HEIGHT
+    page.window.min_width = WINDOW_MIN_WIDTH
+    page.window.min_height = WINDOW_MIN_HEIGHT
 
-    # Crear vistas
-    list_view = ListHabitsView(on_habit_marked=None)
-    _list_view_ref["view"] = list_view
 
-    def on_habit_marked():
-        """Callback cuando se marca un hábito: refrescar la lista."""
-        list_view.refresh_list()
+def main(page: ft.Page, db_path: str = "data/habits.db"):
+    """Punto de entrada de la aplicación Flet.
 
-    list_view.on_habit_marked = on_habit_marked
+    Tareas 3.5 y 4.1 a 4.4: aplica el tema, monta el layout de dos zonas y
+    conecta el botón “+ Nuevo” y el CTA del estado vacío con el mismo diálogo
+    modal de creación. Al guardar, recarga el estado, actualiza la barra
+    lateral y selecciona el hábito recién creado.
 
-    create_view = CreateHabitView(on_habit_created=None)
+    Args:
+        page: Página Flet proporcionada por `ft.run`.
+        db_path: Ruta a la base de datos SQLite.
+    """
+    configure_page(page)
+    init_db(db_path)
 
-    def on_habit_created():
-        """Callback cuando se crea un hábito: navegar a la lista."""
-        page.navigate("/lista")
+    state = load_app_state(db_path)
+    sidebar = Sidebar(state=state)
+    header = HabitDetailHeader(state=state)
+    empty_panel = EmptyDetailPanel(state=state)
 
-    create_view.on_habit_created = on_habit_created
+    detail_column = ft.Column(
+        controls=[header, empty_panel],
+        spacing=16,
+        expand=True,
+        scroll=ft.ScrollMode.AUTO,
+    )
+    layout = ft.Row(
+        controls=[sidebar, detail_column],
+        spacing=16,
+        expand=True,
+        vertical_alignment="start",
+    )
 
-    # Guardar referencias en page para acceso desde vistas
-    page.create_view = create_view  # type: ignore
-    page.list_view = list_view  # type: ignore
+    def refresh_views(selected_id: int | None = None) -> None:
+        """Recargar el estado y repintar la barra lateral y el detalle.
 
-    def route_change(route):
-        """Construir las vistas según la ruta actual."""
-        page.views.clear()
+        Args:
+            selected_id: Hábito que debe quedar seleccionado; si se omite,
+                se conserva la selección inicial del cargador de estado.
+        """
+        nonlocal state
+        state = load_app_state(db_path)
+        if selected_id is not None:
+            try:
+                state.select(selected_id)
+            except ValueError:
+                pass
 
-        def show_create(event):
-            page.navigate("/crear")
-
-        def show_list(event):
-            page.navigate("/lista")
-
-        main_view = create_main_view(show_create, show_list)
-
-        if page.route == "/crear":
-            page.views.append(
-                ft.Container(content=create_view, padding=20)
-            )
-        elif page.route == "/lista":
-            page.views.append(
-                ft.Container(content=list_view, padding=20)
-            )
-            # Refrescar la lista al entrar
-            list_view.refresh_list()
-        else:
-            page.views.append(main_view)
-
+        sidebar.state = state
+        header.state = state
+        empty_panel.state = state
+        sidebar.refresh()
+        header.refresh()
+        empty_panel.refresh()
         page.update()
 
-    page.on_route_change = route_change
-    route_change(page.route)
+    def on_select(_habit_id: int) -> None:
+        """Actualizar el detalle al cambiar de hábito (RF-1.4)."""
+        header.refresh()
+        empty_panel.refresh()
+        page.update()
+
+    def on_habit_created(result: CreateHabitResult) -> None:
+        """Refrescar la interfaz y seleccionar el hábito creado (RF-2.9)."""
+        refresh_views(selected_id=result.habit_id)
+
+    form_dialog = HabitFormDialog(
+        page,
+        on_saved=on_habit_created,
+        db_path=db_path,
+    )
+
+    def open_create_dialog() -> None:
+        """Abrir el mismo modal desde “+ Nuevo” y el estado vacío."""
+        form_dialog.open()
+
+    sidebar.on_select = on_select
+    sidebar.on_new = open_create_dialog
+    empty_panel.on_create = open_create_dialog
+
+    page.views.clear()
+    page.views.append(ft.Container(content=layout, padding=16, expand=True))
+    page.update()
 
 
 if __name__ == "__main__":

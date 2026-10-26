@@ -14,7 +14,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — pruebas unitarias (74 tests pasando)
+- **pytest** — 127 pruebas puras + 10 de interfaz con Flet (137 en `.venv`)
 
 ## Estado de implementación
 
@@ -53,6 +53,55 @@ Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 - `list_all_habits_db(db_path)` — obtiene todos los hábitos registrados, incluidos sus iconos.
 - `get_completions_db(habit_id, db_path)` — obtiene las fechas de completado de un hábito.
 
+### Cargador de estado implementado
+
+Las siguientes piezas en `habits/app_state.py` están completas y testeadas:
+
+- `load_app_state(db_path, today)` — obtiene hábitos y fechas desde `storage.py`, calcula estadísticas con `core.py`, ordena por racha descendente y nombre ascendente, y selecciona el primer hábito.
+- `AppState` — mantiene la lista de hábitos con sus estadísticas y el ID seleccionado.
+- `HabitState` — agrupa un hábito, sus estadísticas y sus fechas completadas.
+
+Este módulo no importa Flet: la interfaz solo consume el estado ya calculado (RFN-3).
+
+### Barra lateral implementada
+
+En `habits/app.py`:
+
+- `Sidebar` — barra lateral con “Mis hábitos”, el botón “+ Nuevo” y la lista de hábitos. Cada elemento muestra icono, nombre y racha; el seleccionado se resalta con fondo verde y un indicador lateral.
+- `icon_for_habit(icon_key)` — traduce la clave semántica del icono a un icono de Flet.
+- `format_streak_label(streak)` — formatea la racha en español (“Sin racha”, “🔥 1 día”, “🔥 2 días”).
+
+### Encabezado de detalle implementado
+
+- `AppState.detail_header()` — devuelve el icono, nombre, subtítulo “Hábito de estudio” y fecha de inicio en dd/mm/aaaa del hábito seleccionado.
+- `DetailHeader` — datos puros del encabezado, sin dependencia de Flet.
+- `HabitDetailHeader` — control Flet que muestra una caja con el icono, el nombre, el subtítulo y la línea “Inicio: dd/mm/aaaa”.
+- `format_date_label(fecha)` — formatea todas las fechas visibles como dd/mm/aaaa (RF-7.4).
+
+### Estado vacío implementado
+
+- `AppState.is_empty` — indica si no hay ningún hábito registrado.
+- `AppState.empty_state()` — devuelve los textos del estado vacío o `None` cuando ya hay hábitos.
+- `EmptyState` — agrupa el mensaje de la barra lateral, el título y el texto del botón.
+- `Sidebar` — muestra “No hay hábitos aún” cuando la lista está vacía.
+- `EmptyDetailPanel` — muestra ilustración, “Crea tu primer hábito para empezar tu racha” y el botón “+ Crear hábito”; se oculta al crear el primero.
+
+### Tema visual y ventana
+
+- `habits/theme.py` — paleta pura y dimensiones: fondo crema, superficies claras, acento verde, barra lateral de 280 px y ventana inicial de 1120×720 (mínimo 960×600).
+- `configure_page(page)` en `habits/app.py` — aplica `ThemeMode.LIGHT`, el color semilla verde, el fondo crema y el tamaño mínimo de ventana.
+- `main()` — monta el layout de dos zonas: barra lateral y panel de detalle, sin scroll horizontal.
+
+### Creación de hábitos con diálogo modal
+
+- `habits/habit_form.py` — lógica pura del formulario, sin Flet:
+  - `ICON_CATALOG` e `ICON_LABELS` — catálogo de iconos con su etiqueta en español.
+  - `parse_start_date(value, today)` — interpreta `dd/mm/aaaa`; sin fecha o con fecha futura usa hoy y rechaza formatos o fechas inexistentes.
+  - `validate_habit_form(data, today)` — exige nombre de 1 a 60 caracteres y normaliza fecha e icono.
+  - `create_habit_from_form(data, db_path, today)` — valida y persiste el hábito, devolviendo su ID.
+- `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, fecha opcional e icono; ante un error permanece abierto y al guardar se cierra.
+- `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
+
 ## Requisitos
 
 - Python 3.12 o superior
@@ -73,12 +122,18 @@ pip install -r requirements.txt
 python -m habits.app
 ```
 
-La aplicación se abre en una ventana de escritorio con dos vistas: crear hábito y listar hábitos con rachas.
+La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
 
 ## Ejecutar tests
 
 ```bash
 pytest -q
+```
+
+`tests/test_habit_dialog.py` requiere Flet y se omite automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
+
+```bash
+.venv\Scripts\python.exe -m pytest -q
 ```
 
 Con cobertura:
@@ -117,10 +172,17 @@ habits/
 ├── __init__.py
 ├── core.py          # Lógica de dominio: modelos y cálculo de racha
 ├── storage.py       # Persistencia SQLite: CRUD de hábitos y registros
-└── app.py           # Interfaz Flet (creación y lista con rachas implementadas)
+├── app_state.py     # Cargador de estado: une storage y core sin Flet
+├── habit_form.py    # Validación y persistencia del formulario modal
+├── theme.py         # Tema visual y dimensiones de ventana
+└── app.py           # Interfaz Flet: barra lateral, detalle y modal
 tests/
 ├── test_core.py     # Tests de lógica de dominio (43 tests)
-└── test_storage.py  # Tests de persistencia (31 tests)
+├── test_storage.py  # Tests de persistencia (31 tests)
+├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
+├── test_theme.py    # Tests del tema y la ventana (3 tests)
+├── test_habit_form.py # Tests del formulario modal (35 tests)
+└── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
 data/
 └── habits.db        # Base de datos SQLite (generada en runtime)
 docs/
@@ -146,6 +208,7 @@ specs/
 
 - **spec-creator (OpenCode)** — `.opencode/skills/spec-creator/`: skill adaptada para OpenCode que permite crear especificaciones de nuevas funcionalidades siguiendo el proceso spec-driven del proyecto. Incluye plantillas para `spec.md`, `plan.md` y `tasks.md`.
 - **spec-creator (Junie, legado)** — `.junie/skills/spec-creator/`: versión original de la skill conservada para compatibilidad con Junie.
+- **commit (OpenCode)** — `.opencode/skills/commit/`: skill que prepara commits siguiendo la convención del repositorio (un commit por fase de spec, asunto `feature: …, spec<NNN> f<FASE>`) y verifica la suite antes de commitear.
 
 ## Licencia
 
