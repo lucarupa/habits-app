@@ -1,5 +1,9 @@
+# spec: 003-edit-delete-habits
 from datetime import date, timedelta
 
+import pytest
+
+from habits import core
 from habits.core import (
     Habit,
     HabitStats,
@@ -14,6 +18,8 @@ from habits.core import (
     build_activity_heatmap,
     list_habits_with_streak,
 )
+
+TODAY = date(2026, 10, 26)
 
 
 class TestHabit:
@@ -132,6 +138,106 @@ class TestCreateHabit:
         habit = create_habit("Leer", icon="icono-inexistente")
 
         assert habit.icon == "book"
+
+
+class TestUpdateHabit:
+    """Tests para update_habit — Tarea 1.1, RF-2.3, RF-2.4, RF-2.7, RF-2.8, RF-2.9, RF-2.12."""
+
+    def _habit(self) -> Habit:
+        """Hábito de referencia con fecha de inicio anterior a TODAY."""
+        return Habit(
+            id=7,
+            name="Python",
+            start_date=date(2026, 9, 1),
+            icon="code",
+        )
+
+    def test_update_habit_changes_fields_and_keeps_id(self):
+        """RF-2.9, RF-2.12: Devuelve nombre, fecha e icono nuevos con el mismo ID."""
+        habit = self._habit()
+
+        updated = core.update_habit(
+            habit,
+            name="Python avanzado",
+            start_date=date(2026, 10, 1),
+            icon="science",
+            today=TODAY,
+        )
+
+        assert updated == Habit(
+            id=7,
+            name="Python avanzado",
+            start_date=date(2026, 10, 1),
+            icon="science",
+        )
+        assert habit == self._habit()
+
+    def test_update_habit_strips_name(self):
+        """RF-2.3: El nombre actualizado se guarda sin espacios sobrantes."""
+        updated = core.update_habit(
+            self._habit(),
+            name="  Leer  ",
+            start_date=date(2026, 9, 1),
+            icon="code",
+            today=TODAY,
+        )
+
+        assert updated.name == "Leer"
+
+    def test_update_habit_rejects_empty_name(self):
+        """RF-2.3: Nombre vacío o solo espacios lanza ValueError."""
+        habit = self._habit()
+
+        for name in ("", "   "):
+            with pytest.raises(ValueError, match="obligatorio"):
+                core.update_habit(
+                    habit,
+                    name=name,
+                    start_date=habit.start_date,
+                    icon=habit.icon,
+                    today=TODAY,
+                )
+
+    def test_update_habit_rejects_long_name(self):
+        """RF-2.4: Nombre de más de 60 caracteres lanza ValueError."""
+        habit = self._habit()
+
+        with pytest.raises(ValueError, match="60"):
+            core.update_habit(
+                habit,
+                name="A" * 61,
+                start_date=habit.start_date,
+                icon=habit.icon,
+                today=TODAY,
+            )
+
+    def test_update_habit_rejects_future_date(self):
+        """RF-2.7: Una fecha de inicio futura lanza ValueError."""
+        habit = self._habit()
+
+        with pytest.raises(ValueError, match="futura"):
+            core.update_habit(
+                habit,
+                name="Python",
+                start_date=TODAY + timedelta(days=1),
+                icon=habit.icon,
+                today=TODAY,
+            )
+
+    def test_update_habit_keeps_current_icon_when_invalid(self):
+        """RF-2.8: Una clave de icono ajena al catálogo conserva el icono actual."""
+        habit = self._habit()
+
+        updated = core.update_habit(
+            habit,
+            name="Python",
+            start_date=habit.start_date,
+            icon="icono-inexistente",
+            today=TODAY,
+        )
+
+        assert updated.id == habit.id
+        assert updated.icon == "code"
 
 
 class TestMarkCompleted:

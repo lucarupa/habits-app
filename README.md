@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 162 pruebas puras + 40 con Flet (202 en `.venv`)
+- **pytest** — 168 pruebas puras + 40 con Flet (208 en `.venv`)
 
 ## Estado de implementación
 
@@ -25,18 +25,19 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 
 | Fase | Descripción | Tareas | Estado |
 |------|-------------|:------:|--------|
-| Fase 1 | Dominio de edición (`core.py`) | 2 | ⬜ Pendiente |
+| Fase 1 | Dominio de edición (`core.py`) | 2 | ✅ Completada |
 | Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ⬜ Pendiente |
 | Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ⬜ Pendiente |
 | Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
 | Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **0 / 21 completadas** |
+| **Total** | | **21** | **2 / 21 completadas** |
 
-El código de la spec 003 aún no se ha empezado: la interfaz actual no ofrece edición,
-eliminación ni calendario de fecha. El detalle de cada tarea, con sus RF y criterios “Hecho
-cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
+La Fase 1 de la spec 003 ya está implementada: `update_habit` valida nombre y fecha y conserva
+el ID y el icono actual. La interfaz aún no ofrece edición, eliminación ni calendario de fecha.
+El detalle de cada tarea, con sus RF y criterios “Hecho cuando”, está en
+`specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
@@ -62,6 +63,7 @@ La ventana se divide en dos zonas sin desplazamiento horizontal: una barra later
 Las siguientes funciones en `habits/core.py` están completas y testeadas:
 
 - `create_habit(name, start_date, icon)` — crea un hábito con validaciones de nombre, fecha e icono.
+- `update_habit(habit, name, start_date, icon, today)` — actualiza nombre, fecha e icono conservando el ID, recorta el nombre y rechaza fechas futuras.
 - `mark_completed(habit_id, completed_dates, today)` — marca un hábito como completado hoy.
 - `calculate_streak(completed_dates, today)` — calcula la racha de días consecutivos.
 - `calculate_best_streak(completed_dates)` — calcula la mejor racha histórica de días consecutivos.
@@ -265,7 +267,7 @@ habits/
 ├── theme.py         # Tema visual y dimensiones de ventana
 └── app.py           # Interfaz Flet: barra lateral, detalle, modal y registro
 tests/
-├── test_core.py     # Tests de lógica de dominio (43 tests)
+├── test_core.py     # Tests de lógica de dominio (49 tests)
 ├── test_storage.py  # Tests de persistencia (31 tests)
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)

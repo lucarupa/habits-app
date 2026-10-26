@@ -1,5 +1,6 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
+# spec: 003-edit-delete-habits
 """Lógica de dominio: modelos y cálculo de racha."""
 
 from dataclasses import dataclass
@@ -100,6 +101,55 @@ def create_habit(
     habit = Habit(id=_next_id, name=name, start_date=start_date, icon=icon)
     _next_id += 1
     return habit
+
+
+def update_habit(
+    habit: Habit,
+    name: str,
+    start_date: date | None,
+    icon: str,
+    today: date,
+) -> Habit:
+    """Actualizar los datos editables de un hábito.
+
+    Conserva el identificador del hábito original y sus registros diarios,
+    que no forman parte de este modelo.
+
+    Args:
+        habit: Hábito que se quiere actualizar.
+        name: Nombre nuevo; se recortan los espacios sobrantes.
+        start_date: Fecha de inicio nueva; si es None se conserva la actual.
+        icon: Clave semántica del icono; si no es válida se conserva la actual.
+        today: Fecha actual para rechazar fechas futuras.
+
+    Returns:
+        Un nuevo Habit con el mismo id y los datos actualizados.
+
+    Raises:
+        ValueError: Si el nombre está vacío o supera 60 caracteres, o si la
+            fecha de inicio es posterior a today.
+    """
+    name = name.strip() if name else ""
+
+    if not name:
+        raise ValueError("El nombre del hábito es obligatorio.")
+    if len(name) > 60:
+        raise ValueError("El nombre del hábito no puede superar 60 caracteres.")
+
+    if start_date is None:
+        start_date = habit.start_date
+    if start_date > today:
+        raise ValueError("La fecha de inicio no puede ser futura.")
+
+    if icon not in ALLOWED_ICONS:
+        icon = habit.icon
+
+    return Habit(
+        id=habit.id,
+        name=name,
+        start_date=start_date,
+        icon=icon,
+    )
 
 
 def reset_id_counter():

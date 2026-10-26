@@ -2,13 +2,13 @@
 
 ## Fase 1: Dominio de edición (`core.py`)
 
-- [ ] **Tarea 1.1:** Escribir los tests de `update_habit`
+- [x] **Tarea 1.1:** Escribir los tests de `update_habit`
   - **RF:** RF-2.3, RF-2.4, RF-2.7, RF-2.8, RF-2.9, RF-2.12
   - **Hecho cuando:** `tests/test_core.py` incluye los seis casos del plan (campos e ID, recorte
     de nombre, nombre vacío, nombre largo, fecha futura e icono inválido) y fallan porque la
     función todavía no existe.
 
-- [ ] **Tarea 1.2:** Implementar `update_habit` en `core.py`
+- [x] **Tarea 1.2:** Implementar `update_habit` en `core.py`
   - **RF:** RF-2.3, RF-2.4, RF-2.7, RF-2.8, RF-2.12
   - **Hecho cuando:** La función valida nombre y fecha, conserva el ID y el icono actual cuando
     corresponde, y todos los tests de la tarea 1.1 pasan.
