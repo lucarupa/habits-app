@@ -15,19 +15,19 @@
 
 ## Fase 2: Persistencia de edición y eliminación (`storage.py`)
 
-- [ ] **Tarea 2.1:** Escribir los tests de `update_habit_db`
+- [x] **Tarea 2.1:** Escribir los tests de `update_habit_db`
   - **RF:** RF-2.13, RF-2.14
   - **Hecho cuando:** `tests/test_storage.py` comprueba que actualiza una fila existente, que
     persiste los tres campos y que lanza error con un ID inexistente; los tests fallan porque la
     función no existe.
 
-- [ ] **Tarea 2.2:** Escribir los tests de `delete_habit_db`
+- [x] **Tarea 2.2:** Escribir los tests de `delete_habit_db`
   - **RF:** RF-3.4, RF-3.8
   - **Hecho cuando:** `tests/test_storage.py` comprueba que borra el hábito y sus registros, que
     no afecta a otros hábitos y que lanza error con un ID inexistente; los tests fallan porque
     la función no existe.
 
-- [ ] **Tarea 2.3:** Implementar `update_habit_db` y `delete_habit_db`
+- [x] **Tarea 2.3:** Implementar `update_habit_db` y `delete_habit_db`
   - **RF:** RF-2.13, RF-2.14, RF-3.4, RF-3.8, RFN-1
   - **Hecho cuando:** La actualización escribe nombre, fecha e icono; el borrado elimina primero
     los registros y después el hábito dentro de una transacción; los tests de las tareas 2.1 y

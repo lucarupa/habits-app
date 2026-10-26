@@ -1,5 +1,6 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
+# spec: 003-edit-delete-habits
 """Tests para la capa de persistencia SQLite — Tarea 4.1, RFN-3."""
 
 import os
@@ -7,6 +8,10 @@ import sqlite3
 import tempfile
 from contextlib import closing
 from datetime import date
+
+import pytest
+
+from habits import storage
 from habits.storage import (
     init_db, create_habit_db, get_habit_db,
     mark_completed_db, is_completed_today_db,
@@ -295,6 +300,115 @@ class TestCreateHabitDb:
         habit = get_habit_db(habit_id, db_path=self.db_path)
 
         assert habit.icon == "science"
+
+
+class TestUpdateHabitDb:
+    """Tests para update_habit_db() — Tarea 2.1, RF-2.13, RF-2.14."""
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_update_habit_db_updates_existing_row(self):
+        """RF-2.14: Persiste nombre, fecha e icono sin crear una fila nueva."""
+        habit_id = create_habit_db(
+            "Python", "2026-09-01", icon="code", db_path=self.db_path
+        )
+
+        storage.update_habit_db(
+            habit_id,
+            name="Python avanzado",
+            start_date="2026-10-01",
+            icon="science",
+            db_path=self.db_path,
+        )
+
+        habit = get_habit_db(habit_id, db_path=self.db_path)
+
+        assert habit is not None
+        assert habit.id == habit_id
+        assert habit.name == "Python avanzado"
+        assert habit.start_date == "2026-10-01"
+        assert habit.icon == "science"
+        assert len(list_all_habits_db(db_path=self.db_path)) == 1
+
+    def test_update_habit_db_raises_for_unknown_id(self):
+        """RF-2.13: Un ID inexistente lanza ValueError y no crea filas."""
+        with pytest.raises(ValueError, match="no existe"):
+            storage.update_habit_db(
+                999,
+                name="Fantasma",
+                start_date="2026-10-01",
+                icon="book",
+                db_path=self.db_path,
+            )
+
+        assert list_all_habits_db(db_path=self.db_path) == []
+
+
+class TestDeleteHabitDb:
+    """Tests para delete_habit_db() — Tarea 2.2, RF-3.4, RF-3.8."""
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_delete_habit_db_removes_habit_and_completions(self):
+        """RF-3.4: Borra el hábito y todos sus registros diarios."""
+        habit_id = create_habit_db("Python", "2026-09-01", db_path=self.db_path)
+        mark_completed_db(habit_id, "2026-10-24", db_path=self.db_path)
+        mark_completed_db(habit_id, "2026-10-25", db_path=self.db_path)
+
+        storage.delete_habit_db(habit_id, db_path=self.db_path)
+
+        assert get_habit_db(habit_id, db_path=self.db_path) is None
+        assert get_completions_db(habit_id, db_path=self.db_path) == []
+
+    def test_delete_habit_db_keeps_other_habits(self):
+        """RF-3.4: No afecta a otros hábitos ni a sus registros."""
+        deleted_id = create_habit_db("Python", "2026-09-01", db_path=self.db_path)
+        kept_id = create_habit_db("Lectura", "2026-09-02", db_path=self.db_path)
+        mark_completed_db(deleted_id, "2026-10-24", db_path=self.db_path)
+        mark_completed_db(kept_id, "2026-10-24", db_path=self.db_path)
+        mark_completed_db(kept_id, "2026-10-25", db_path=self.db_path)
+
+        storage.delete_habit_db(deleted_id, db_path=self.db_path)
+
+        kept = get_habit_db(kept_id, db_path=self.db_path)
+        assert kept is not None
+        assert kept.name == "Lectura"
+        assert get_completions_db(kept_id, db_path=self.db_path) == [
+            "2026-10-24",
+            "2026-10-25",
+        ]
+        assert [habit.id for habit in list_all_habits_db(db_path=self.db_path)] == [
+            kept_id
+        ]
+
+    def test_delete_habit_db_raises_for_unknown_id(self):
+        """RF-3.8: Un ID inexistente lanza ValueError sin cambios parciales."""
+        kept_id = create_habit_db("Lectura", "2026-09-02", db_path=self.db_path)
+        mark_completed_db(kept_id, "2026-10-24", db_path=self.db_path)
+
+        with pytest.raises(ValueError, match="no existe"):
+            storage.delete_habit_db(999, db_path=self.db_path)
+
+        assert get_habit_db(kept_id, db_path=self.db_path) is not None
+        assert get_completions_db(kept_id, db_path=self.db_path) == ["2026-10-24"]
 
 
 class TestMarkCompletedDb:

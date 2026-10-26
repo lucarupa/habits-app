@@ -1,5 +1,6 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
+# spec: 003-edit-delete-habits
 """Persistencia SQLite: CRUD de hábitos y registros diarios."""
 
 from dataclasses import dataclass
@@ -133,6 +134,75 @@ def get_habit_db(
         start_date=row["start_date"],
         icon=row["icon"],
     )
+
+
+def update_habit_db(
+    habit_id: int,
+    name: str,
+    start_date: str,
+    icon: str = DEFAULT_ICON,
+    db_path: str = "data/habits.db",
+) -> None:
+    """Actualizar nombre, fecha de inicio e icono de un hábito existente.
+
+    Args:
+        habit_id: Identificador único del hábito.
+        name: Nombre nuevo del hábito.
+        start_date: Fecha de inicio nueva en formato YYYY-MM-DD.
+        icon: Clave semántica del icono nuevo.
+        db_path: Ruta al archivo de base de datos SQLite.
+
+    Raises:
+        ValueError: Si no existe un hábito con ese ID.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        cursor = conn.execute(
+            "UPDATE habits SET name = ?, start_date = ?, icon = ? WHERE id = ?",
+            (name, start_date, icon, habit_id),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            raise ValueError("El hábito no existe.")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def delete_habit_db(
+    habit_id: int,
+    db_path: str = "data/habits.db",
+) -> None:
+    """Eliminar un hábito y todos sus registros diarios.
+
+    Borra primero los registros de `completions` y después la fila de
+    `habits` dentro de una única transacción, para no dejar registros
+    huérfanos si algo falla.
+
+    Args:
+        habit_id: Identificador único del hábito.
+        db_path: Ruta al archivo de base de datos SQLite.
+
+    Raises:
+        ValueError: Si no existe un hábito con ese ID.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("BEGIN")
+        conn.execute(
+            "DELETE FROM completions WHERE habit_id = ?",
+            (habit_id,),
+        )
+        cursor = conn.execute(
+            "DELETE FROM habits WHERE id = ?",
+            (habit_id,),
+        )
+        if cursor.rowcount == 0:
+            conn.rollback()
+            raise ValueError("El hábito no existe.")
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def mark_completed_db(

@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 168 pruebas puras + 40 con Flet (208 en `.venv`)
+- **pytest** — 173 pruebas puras + 40 con Flet (213 en `.venv`)
 
 ## Estado de implementación
 
@@ -26,17 +26,18 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 | Fase | Descripción | Tareas | Estado |
 |------|-------------|:------:|--------|
 | Fase 1 | Dominio de edición (`core.py`) | 2 | ✅ Completada |
-| Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ⬜ Pendiente |
+| Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ✅ Completada |
 | Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ⬜ Pendiente |
 | Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
 | Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **2 / 21 completadas** |
+| **Total** | | **21** | **5 / 21 completadas** |
 
-La Fase 1 de la spec 003 ya está implementada: `update_habit` valida nombre y fecha y conserva
-el ID y el icono actual. La interfaz aún no ofrece edición, eliminación ni calendario de fecha.
-El detalle de cada tarea, con sus RF y criterios “Hecho cuando”, está en
+Las Fases 1 y 2 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
+dominio, y `storage.py` persiste la edición y el borrado transaccional del hábito con sus
+registros. La interfaz aún no ofrece edición, eliminación ni calendario de fecha. El detalle de
+cada tarea, con sus RF y criterios “Hecho cuando”, está en
 `specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
@@ -79,6 +80,8 @@ Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 - `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen, y migra bases antiguas añadiendo la columna `icon` (valor por defecto `book`).
 - `create_habit_db(name, start_date, icon, db_path)` — inserta un hábito con su icono y retorna su ID.
 - `get_habit_db(habit_id, db_path)` — lee un hábito por ID, incluido su icono.
+- `update_habit_db(habit_id, name, start_date, icon, db_path)` — actualiza nombre, fecha e icono de una fila existente; lanza error si el hábito no existe.
+- `delete_habit_db(habit_id, db_path)` — borra el hábito y sus registros en una transacción; lanza error si el hábito no existe.
 - `mark_completed_db(habit_id, completed_date, db_path)` — registra un completado.
 - `is_completed_today_db(habit_id, today, db_path)` — verifica si un hábito ya está marcado hoy.
 - `list_all_habits_db(db_path)` — obtiene todos los hábitos registrados, incluidos sus iconos.
@@ -268,7 +271,7 @@ habits/
 └── app.py           # Interfaz Flet: barra lateral, detalle, modal y registro
 tests/
 ├── test_core.py     # Tests de lógica de dominio (49 tests)
-├── test_storage.py  # Tests de persistencia (31 tests)
+├── test_storage.py  # Tests de persistencia (36 tests)
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (35 tests)
