@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 162 pruebas puras + 38 con Flet (200 en `.venv`)
+- **pytest** — 162 pruebas puras + 40 con Flet (202 en `.venv`)
 
 ## Estado de implementación
 
@@ -45,7 +45,7 @@ La ventana se divide en dos zonas sin desplazamiento horizontal: una barra later
   y la fecha de inicio; debajo aparecen las tres tarjetas de estadísticas (con su icono), el
   heatmap de actividad con etiquetas de días y el panel “Registrar hoy”.
 - **Estado vacío** — cuando no hay hábitos, el detalle invita a crear el primero con el botón
-  “+ Crear hábito” y la barra lateral muestra “No hay hábitos aún”.
+  “+ Crear hábito”, centrado en el panel, y la barra lateral muestra “No hay hábitos aún”.
 - **Diálogo modal** — “+ Nuevo” y “+ Crear hábito” abren el mismo formulario sin abandonar la
   vista; al guardar se selecciona el hábito recién creado.
 - **Tema** — fondo crema, superficies claras y acentos verdes; ventana inicial de 1120×720
@@ -258,6 +258,7 @@ tests/
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
 ├── test_window_icon.py # Icono personalizado de la ventana (2 tests, requiere .venv)
+├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
 ├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)

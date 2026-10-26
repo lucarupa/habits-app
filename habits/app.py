@@ -286,6 +286,7 @@ class HabitDetailHeader(ft.Container):
         header = (
             self.state.detail_header() if self.state is not None else None
         )
+        self.visible = header is not None
         if header is None:
             self._body.controls = []
             return
@@ -647,6 +648,7 @@ class EmptyDetailPanel(ft.Container):
     def init(self):
         self.expand = True
         self.padding = 32
+        self.alignment = ft.Alignment.CENTER
         self.content = ft.Column(
             controls=[
                 ft.Icon(
@@ -1244,7 +1246,8 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         controls=[header, stats_cards, heatmap, registration, empty_panel],
         spacing=16,
         expand=True,
-        scroll=ft.ScrollMode.AUTO,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+        scroll=None if state.is_empty else ft.ScrollMode.AUTO,
     )
     layout = ft.Row(
         controls=[sidebar, detail_column],
@@ -1274,6 +1277,9 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         heatmap.state = state
         registration.state = state
         empty_panel.state = state
+        detail_column.scroll = (
+            None if state.is_empty else ft.ScrollMode.AUTO
+        )
         sidebar.refresh()
         header.refresh()
         stats_cards.refresh()
