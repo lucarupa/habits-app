@@ -1,8 +1,14 @@
 # spec: 001-habits-mvp
+# spec: 002-ui-redesign
 """Lógica de dominio: modelos y cálculo de racha."""
 
 from dataclasses import dataclass
 from datetime import date, timedelta
+
+DEFAULT_ICON = "book"
+ALLOWED_ICONS: frozenset[str] = frozenset(
+    {"book", "code", "science", "language", "music", "art", "math", "fitness"}
+)
 
 _next_id = 1
 
@@ -15,19 +21,62 @@ class Habit:
         id: Identificador único.
         name: Nombre del hábito.
         start_date: Fecha de inicio del hábito.
+        icon: Clave semántica del icono del hábito.
     """
 
     id: int
     name: str
     start_date: date
+    icon: str = DEFAULT_ICON
 
 
-def create_habit(name: str, start_date: date | None = None) -> Habit:
+@dataclass(frozen=True)
+class HabitStats:
+    """Estadísticas de un hábito.
+
+    Atributos:
+        current_streak: Días consecutivos que terminan hoy.
+        best_streak: Mayor cantidad de días consecutivos registrados.
+        registered_days: Cantidad de fechas distintas con al menos un registro.
+    """
+
+    current_streak: int
+    best_streak: int
+    registered_days: int
+
+
+@dataclass(frozen=True)
+class HeatmapDay:
+    """Celda del heatmap de actividad.
+
+    Atributos:
+        date: Fecha representada por la celda.
+        completed: Indica si el hábito se completó esa fecha.
+        is_today: Indica si la celda corresponde a hoy.
+        is_future: Indica si la fecha es posterior a hoy.
+        weekday: Día de la semana (0 = lunes, 6 = domingo).
+        week: Índice de la semana dentro del heatmap (0–4).
+    """
+
+    date: date
+    completed: bool
+    is_today: bool
+    is_future: bool
+    weekday: int
+    week: int
+
+
+def create_habit(
+    name: str,
+    start_date: date | None = None,
+    icon: str = DEFAULT_ICON,
+) -> Habit:
     """Crear un nuevo hábito con validaciones.
 
     Args:
         name: Nombre del hábito (1–60 caracteres).
         start_date: Fecha de inicio opcional; por defecto hoy.
+        icon: Clave semántica del icono; si no es válida, se usa el icono por defecto.
 
     Returns:
         Un nuevo objeto Habit.
@@ -41,12 +90,14 @@ def create_habit(name: str, start_date: date | None = None) -> Habit:
         raise ValueError("El nombre del hábito es obligatorio.")
     if len(name) > 60:
         raise ValueError("El nombre del hábito no puede superar 60 caracteres.")
+    if icon not in ALLOWED_ICONS:
+        icon = DEFAULT_ICON
 
     today = date.today()
     if start_date is None or start_date > today:
         start_date = today
 
-    habit = Habit(id=_next_id, name=name, start_date=start_date)
+    habit = Habit(id=_next_id, name=name, start_date=start_date, icon=icon)
     _next_id += 1
     return habit
 
@@ -128,6 +179,110 @@ def calculate_streak(completed_dates: set[date], today: date) -> int:
             break
 
     return streak
+
+
+def calculate_best_streak(completed_dates: set[date]) -> int:
+    """Calcular la mejor racha histórica de un hábito.
+
+    Recorre las fechas ordenadas y encuentra el bloque de días consecutivos
+    más largo, sin importar si termina hoy.
+
+    Args:
+        completed_dates: Conjunto de fechas completadas para un hábito.
+
+    Returns:
+        La cantidad de días del bloque consecutivo más largo, o 0 si no hay
+        registros.
+    """
+    if not completed_dates:
+        return 0
+
+    sorted_dates = sorted(completed_dates)
+    best = 1
+    current = 1
+    previous = sorted_dates[0]
+
+    for current_date in sorted_dates[1:]:
+        if current_date == previous + timedelta(days=1):
+            current += 1
+        else:
+            if current > best:
+                best = current
+            current = 1
+        previous = current_date
+
+    return max(best, current)
+
+
+def count_registered_days(completed_dates: set[date]) -> int:
+    """Contar las fechas distintas con al menos un registro.
+
+    Args:
+        completed_dates: Conjunto de fechas completadas para un hábito.
+
+    Returns:
+        La cantidad de fechas distintas registradas.
+    """
+    return len(set(completed_dates))
+
+
+def get_habit_stats(completed_dates: set[date], today: date) -> HabitStats:
+    """Obtener las estadísticas de un hábito.
+
+    Reutiliza las funciones de racha actual, mejor racha y días registrados
+    para no duplicar la lógica de cálculo.
+
+    Args:
+        completed_dates: Conjunto de fechas completadas para un hábito.
+        today: La fecha actual.
+
+    Returns:
+        Un objeto HabitStats con las tres estadísticas del hábito.
+    """
+    return HabitStats(
+        current_streak=calculate_streak(completed_dates, today),
+        best_streak=calculate_best_streak(completed_dates),
+        registered_days=count_registered_days(completed_dates),
+    )
+
+
+def build_activity_heatmap(
+    completed_dates: set[date],
+    today: date,
+    weeks: int = 5,
+) -> list[HeatmapDay]:
+    """Construir las celdas del heatmap de actividad.
+
+    La cuadrícula empieza en el lunes de la primera semana y termina en el
+    domingo de la semana actual. Las celdas posteriores a hoy se marcan como
+    futuras.
+
+    Args:
+        completed_dates: Conjunto de fechas completadas para un hábito.
+        today: La fecha actual.
+        weeks: Cantidad de semanas calendario a mostrar (5 por defecto).
+
+    Returns:
+        Una lista de celdas HeatmapDay ordenadas por fecha.
+    """
+    start_of_current_week = today - timedelta(days=today.weekday())
+    start = start_of_current_week - timedelta(weeks=weeks - 1)
+
+    cells: list[HeatmapDay] = []
+    for offset in range(weeks * 7):
+        day = start + timedelta(days=offset)
+        cells.append(
+            HeatmapDay(
+                date=day,
+                completed=day in completed_dates,
+                is_today=day == today,
+                is_future=day > today,
+                weekday=day.weekday(),
+                week=offset // 7,
+            )
+        )
+
+    return cells
 
 
 def list_habits_with_streak(

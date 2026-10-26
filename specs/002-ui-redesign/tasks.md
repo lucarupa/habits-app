@@ -10,27 +10,27 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 1: Modelo de dominio y estadísticas (`core.py`)
 
-- [ ] **Tarea 1.1:** Añadir el icono al modelo `Habit` y a `create_habit`
+- [x] **Tarea 1.1:** Añadir el icono al modelo `Habit` y a `create_habit`
   - **RF:** RF-2.6, RF-2.8
   - **Hecho cuando:** Existen tests que verifican el icono por defecto, el icono elegido y el
     icono inválido; `Habit` y `create_habit` aceptan `icon` sin romper los tests existentes.
 
-- [ ] **Tarea 1.2:** Implementar `calculate_best_streak(completed_dates)`
+- [x] **Tarea 1.2:** Implementar `calculate_best_streak(completed_dates)`
   - **RF:** RF-3.3
   - **Hecho cuando:** Tests para vacío, un día, días consecutivos, huecos y racha actual como
     mejor racha pasan; la función retorna el bloque consecutivo más largo.
 
-- [ ] **Tarea 1.3:** Implementar `count_registered_days` y `HabitStats`
+- [x] **Tarea 1.3:** Implementar `count_registered_days` y `HabitStats`
   - **RF:** RF-3.2, RF-3.4, RF-3.5
   - **Hecho cuando:** `HabitStats` contiene racha actual, mejor racha y días registrados;
     los tests de hábito vacío, activo e inactivo pasan sin duplicar el cálculo de racha.
 
-- [ ] **Tarea 1.4:** Implementar `build_activity_heatmap`
+- [x] **Tarea 1.4:** Implementar `build_activity_heatmap`
   - **RF:** RF-4.1, RF-4.2, RF-4.3, RF-4.4, RF-4.6
   - **Hecho cuando:** La función devuelve 35 celdas de 5 semanas por 7 días, marca completados,
     hoy y días futuros; los tests de dimensiones, contenido y heatmap vacío pasan.
 
-- [ ] **Tarea 1.5:** Verificar cobertura de `habits/core.py`
+- [x] **Tarea 1.5:** Verificar cobertura de `habits/core.py`
   - **RF:** RFN-4
   - **Hecho cuando:** `pytest --cov=habits.core --cov-report=term-missing` muestra ≥80 % y
     todos los tests de dominio pasan.

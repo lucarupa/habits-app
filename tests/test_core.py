@@ -1,6 +1,19 @@
 from datetime import date, timedelta
 
-from habits.core import Habit, create_habit, reset_id_counter, mark_completed, calculate_streak, list_habits_with_streak
+from habits.core import (
+    Habit,
+    HabitStats,
+    HeatmapDay,
+    create_habit,
+    reset_id_counter,
+    mark_completed,
+    calculate_streak,
+    calculate_best_streak,
+    count_registered_days,
+    get_habit_stats,
+    build_activity_heatmap,
+    list_habits_with_streak,
+)
 
 
 class TestHabit:
@@ -19,6 +32,18 @@ class TestHabit:
         habit = Habit(id=1, name="Leer", start_date=date.today())
 
         assert isinstance(habit.start_date, date)
+
+    def test_habit_default_icon(self):
+        """RF-2.6: Un Habit sin icono usa el icono por defecto."""
+        habit = Habit(id=1, name="Leer", start_date=date.today())
+
+        assert habit.icon == "book"
+
+    def test_habit_with_icon(self):
+        """RF-2.8: Un Habit puede construirse con un icono explícito."""
+        habit = Habit(id=1, name="Programar", start_date=date.today(), icon="code")
+
+        assert habit.icon == "code"
 
 
 class TestCreateHabit:
@@ -89,6 +114,24 @@ class TestCreateHabit:
         habit = create_habit("Futuro", start_date=future)
 
         assert habit.start_date == date.today()
+
+    def test_create_habit_default_icon(self):
+        """RF-2.6: Sin icono se asigna el icono por defecto."""
+        habit = create_habit("Leer")
+
+        assert habit.icon == "book"
+
+    def test_create_habit_selected_icon(self):
+        """RF-2.8: El icono elegido se conserva en el objeto Habit."""
+        habit = create_habit("Programar", icon="code")
+
+        assert habit.icon == "code"
+
+    def test_create_habit_invalid_icon(self):
+        """RF-2.6: Un icono no válido se sustituye por el icono por defecto."""
+        habit = create_habit("Leer", icon="icono-inexistente")
+
+        assert habit.icon == "book"
 
 
 class TestMarkCompleted:
@@ -201,6 +244,197 @@ class TestCalculateStreak:
         streak = calculate_streak(completed, today)
 
         assert streak == 0
+
+
+class TestCalculateBestStreak:
+    """Tests para calculate_best_streak — Tarea 1.2, RF-3.3."""
+
+    def test_calculate_best_streak_empty(self):
+        """RF-3.3: Sin registros, la mejor racha es 0."""
+        assert calculate_best_streak(set()) == 0
+
+    def test_calculate_best_streak_single(self):
+        """RF-3.3: Un solo día registrado da mejor racha 1."""
+        today = date.today()
+
+        assert calculate_best_streak({today}) == 1
+
+    def test_calculate_best_streak_consecutive(self):
+        """RF-3.3: Varios días consecutivos se cuentan completos."""
+        today = date.today()
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+        }
+
+        assert calculate_best_streak(completed) == 3
+
+    def test_calculate_best_streak_with_gaps(self):
+        """RF-3.3: Los huecos separan bloques y se toma el mayor."""
+        today = date.today()
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=4),
+            today - timedelta(days=5),
+            today - timedelta(days=6),
+        }
+
+        assert calculate_best_streak(completed) == 3
+
+    def test_calculate_best_streak_includes_current(self):
+        """RF-3.3: La racha actual puede ser la mejor racha."""
+        today = date.today()
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+            today - timedelta(days=3),
+            today - timedelta(days=10),
+        }
+
+        assert calculate_best_streak(completed) == 4
+
+
+class TestCountRegisteredDays:
+    """Tests para count_registered_days — Tarea 1.3, RF-3.4."""
+
+    def test_count_registered_days_empty(self):
+        """RF-3.4: Sin registros, los días registrados son 0."""
+        assert count_registered_days(set()) == 0
+
+    def test_count_registered_days_distinct(self):
+        """RF-3.4: Se cuentan fechas distintas, no repeticiones."""
+        today = date.today()
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=3),
+        }
+
+        assert count_registered_days(completed) == 3
+
+
+class TestGetHabitStats:
+    """Tests para HabitStats y get_habit_stats — Tarea 1.3, RF-3.2, RF-3.4, RF-3.5."""
+
+    def test_get_habit_stats_empty(self):
+        """RF-3.5: Sin registros, las tres estadísticas son 0."""
+        stats = get_habit_stats(set(), date.today())
+
+        assert stats == HabitStats(
+            current_streak=0,
+            best_streak=0,
+            registered_days=0,
+        )
+
+    def test_get_habit_stats_active(self):
+        """RF-3.2, RF-3.3, RF-3.4: Un hábito activo devuelve valores correctos."""
+        today = date.today()
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=3),
+            today - timedelta(days=4),
+            today - timedelta(days=5),
+        }
+
+        stats = get_habit_stats(completed, today)
+
+        assert stats.current_streak == 2
+        assert stats.best_streak == 3
+        assert stats.registered_days == 5
+
+    def test_get_habit_stats_inactive(self):
+        """RF-3.2: Si el último día no es hoy, la racha actual es 0."""
+        today = date.today()
+        completed = {
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+            today - timedelta(days=3),
+        }
+
+        stats = get_habit_stats(completed, today)
+
+        assert stats.current_streak == 0
+        assert stats.best_streak == 3
+        assert stats.registered_days == 3
+
+
+class TestBuildActivityHeatmap:
+    """Tests para build_activity_heatmap — Tarea 1.4, RF-4.1 a RF-4.6."""
+
+    def test_build_activity_heatmap_dimensions(self):
+        """RF-4.1, RF-4.2: Devuelve 35 celdas en 5 semanas y 7 días."""
+        today = date(2024, 10, 24)  # Jueves
+
+        cells = build_activity_heatmap(set(), today)
+
+        assert len(cells) == 35
+        assert all(isinstance(cell, HeatmapDay) for cell in cells)
+        assert cells[0].date == date(2024, 9, 23)  # Lunes inicial
+        assert cells[-1].date == date(2024, 10, 27)  # Domingo final
+        assert cells[0].weekday == 0
+        assert cells[-1].weekday == 6
+        assert {cell.week for cell in cells} == {0, 1, 2, 3, 4}
+        assert all(
+            sum(1 for cell in cells if cell.week == week) == 7
+            for week in range(5)
+        )
+
+    def test_build_activity_heatmap_marks_completed(self):
+        """RF-4.3: Las fechas completadas se marcan como completadas."""
+        today = date(2024, 10, 24)
+        completed = {
+            date(2024, 10, 21),
+            date(2024, 10, 22),
+            date(2024, 10, 24),
+        }
+
+        cells = build_activity_heatmap(completed, today)
+        by_date = {cell.date: cell for cell in cells}
+
+        assert by_date[date(2024, 10, 21)].completed is True
+        assert by_date[date(2024, 10, 22)].completed is True
+        assert by_date[date(2024, 10, 24)].completed is True
+        assert by_date[date(2024, 10, 23)].completed is False
+
+    def test_build_activity_heatmap_today(self):
+        """RF-4.4: La celda de hoy se marca con is_today."""
+        today = date(2024, 10, 24)
+
+        cells = build_activity_heatmap({today}, today)
+        today_cells = [cell for cell in cells if cell.is_today]
+
+        assert len(today_cells) == 1
+        assert today_cells[0].date == today
+        assert today_cells[0].completed is True
+        assert today_cells[0].is_future is False
+
+    def test_build_activity_heatmap_future_days(self):
+        """RF-4.3: Los días posteriores a hoy se marcan como futuros."""
+        today = date(2024, 10, 24)
+
+        cells = build_activity_heatmap(set(), today)
+        future_dates = [cell.date for cell in cells if cell.is_future]
+
+        assert future_dates == [
+            date(2024, 10, 25),
+            date(2024, 10, 26),
+            date(2024, 10, 27),
+        ]
+        assert all(
+            not cell.is_future for cell in cells if cell.date <= today
+        )
+
+    def test_build_activity_heatmap_empty(self):
+        """RF-4.6: Sin registros, ninguna celda está completada."""
+        today = date(2024, 10, 24)
+
+        cells = build_activity_heatmap(set(), today)
+
+        assert all(cell.completed is False for cell in cells)
 
 
 class TestListHabitsWithStreak:

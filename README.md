@@ -14,7 +14,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — pruebas unitarias (46 tests pasando)
+- **pytest** — pruebas unitarias (66 tests pasando)
 
 ## Estado de implementación
 
@@ -32,9 +32,13 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 
 Las siguientes funciones en `habits/core.py` están completas y testeadas:
 
-- `create_habit(name, start_date)` — crea un hábito con validaciones de nombre y fecha.
+- `create_habit(name, start_date, icon)` — crea un hábito con validaciones de nombre, fecha e icono.
 - `mark_completed(habit_id, completed_dates, today)` — marca un hábito como completado hoy.
 - `calculate_streak(completed_dates, today)` — calcula la racha de días consecutivos.
+- `calculate_best_streak(completed_dates)` — calcula la mejor racha histórica de días consecutivos.
+- `count_registered_days(completed_dates)` — cuenta las fechas distintas registradas.
+- `get_habit_stats(completed_dates, today)` — devuelve racha actual, mejor racha y días registrados.
+- `build_activity_heatmap(completed_dates, today, weeks=5)` — construye las celdas del heatmap de actividad.
 - `list_habits_with_streak(habits, completions_by_habit, today)` — lista hábitos ordenados por racha.
 
 ### Persistencia SQLite implementada
