@@ -35,13 +35,13 @@
 
 ## Fase 3: Lógica del formulario de edición (`habit_form.py`)
 
-- [ ] **Tarea 3.1:** Escribir los tests de validación y persistencia de la edición
+- [x] **Tarea 3.1:** Escribir los tests de validación y persistencia de la edición
   - **RF:** RF-2.3, RF-2.5, RF-2.7, RF-2.8, RF-2.9, RF-2.12, RF-2.14
   - **Hecho cuando:** `tests/test_habit_form.py` cubre fecha vacía que conserva la actual, fecha
     futura rechazada, icono ausente que conserva el actual, nombre vacío, persistencia correcta y
     registros intactos; los tests fallan porque las funciones no existen.
 
-- [ ] **Tarea 3.2:** Implementar `UpdateHabitResult`, `validate_habit_update` y
+- [x] **Tarea 3.2:** Implementar `UpdateHabitResult`, `validate_habit_update` y
   `update_habit_from_form`
   - **RF:** RF-2.3, RF-2.5, RF-2.7, RF-2.8, RF-2.9, RF-2.12, RF-2.14
   - **Hecho cuando:** La validación reutiliza las reglas de nombre, resuelve la fecha de edición

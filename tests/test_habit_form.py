@@ -1,4 +1,5 @@
 # spec: 002-ui-redesign
+# spec: 003-edit-delete-habits
 """Tests de la lógica del formulario de creación — Fase 4.
 
 Cubre RF-2.2, RF-2.3, RF-2.4, RF-2.5, RF-2.6, RF-2.7, RF-2.9 y RF-2.10.
@@ -10,8 +11,9 @@ from datetime import date, timedelta
 
 import pytest
 
+from habits import habit_form
 from habits.app_state import load_app_state
-from habits.core import ALLOWED_ICONS, DEFAULT_ICON
+from habits.core import ALLOWED_ICONS, DEFAULT_ICON, Habit
 from habits.habit_form import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,
@@ -27,7 +29,14 @@ from habits.habit_form import (
     parse_start_date,
     validate_habit_form,
 )
-from habits.storage import get_habit_db, init_db, list_all_habits_db
+from habits.storage import (
+    create_habit_db,
+    get_completions_db,
+    get_habit_db,
+    init_db,
+    list_all_habits_db,
+    mark_completed_db,
+)
 
 TODAY = date(2024, 10, 24)
 
@@ -274,3 +283,152 @@ class TestCreateHabitFromForm:
         assert header is not None
         assert header.name == "Leer"
         assert header.icon == "book"
+
+
+class TestValidateHabitUpdate:
+    """Tests de validate_habit_update() — Tarea 3.1, RF-2.3, RF-2.5, RF-2.7, RF-2.8."""
+
+    def _habit(self) -> Habit:
+        """Hábito de referencia con datos anteriores a TODAY."""
+        return Habit(
+            id=1,
+            name="Python",
+            start_date=date(2024, 9, 1),
+            icon="code",
+        )
+
+    def test_validate_update_keeps_current_date_when_empty(self):
+        """RF-2.5: Sin fecha nueva se conserva la fecha actual del hábito."""
+        habit = self._habit()
+
+        result = habit_form.validate_habit_update(
+            habit,
+            HabitFormData(
+                name="Python avanzado",
+                start_date="",
+                icon=None,
+            ),
+            today=TODAY,
+        )
+
+        assert result.start_date == habit.start_date
+        assert result.name == "Python avanzado"
+        assert result.icon == "code"
+
+    def test_validate_update_rejects_future_date(self):
+        """RF-2.7: Una fecha futura se rechaza al editar."""
+        habit = self._habit()
+        future = (TODAY + timedelta(days=1)).strftime("%d/%m/%Y")
+
+        with pytest.raises(ValueError, match="futura"):
+            habit_form.validate_habit_update(
+                habit,
+                HabitFormData(name="Python", start_date=future),
+                today=TODAY,
+            )
+
+    def test_validate_update_keeps_current_icon_when_missing(self):
+        """RF-2.8: Sin icono se conserva el icono actual del hábito."""
+        habit = self._habit()
+
+        for icon in (None, ""):
+            result = habit_form.validate_habit_update(
+                habit,
+                HabitFormData(name="Python", icon=icon),
+                today=TODAY,
+            )
+
+            assert result.icon == "code"
+
+    def test_validate_update_rejects_empty_name(self):
+        """RF-2.3: Nombre vacío o solo espacios lanza error."""
+        habit = self._habit()
+
+        for name in ("", "   "):
+            with pytest.raises(ValueError, match=NAME_REQUIRED_ERROR):
+                habit_form.validate_habit_update(
+                    habit,
+                    HabitFormData(name=name),
+                    today=TODAY,
+                )
+
+
+class TestUpdateHabitFromForm:
+    """Tests de update_habit_from_form() — Tarea 3.1, RF-2.9, RF-2.12, RF-2.14."""
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _stored_habit(self) -> Habit:
+        """Persistir un hábito de referencia y devolverlo como Habit."""
+        habit_id = create_habit_db(
+            "Python", "2024-09-01", icon="code", db_path=self.db_path
+        )
+        return Habit(
+            id=habit_id,
+            name="Python",
+            start_date=date(2024, 9, 1),
+            icon="code",
+        )
+
+    def test_update_habit_from_form_persists_changes(self):
+        """RF-2.9, RF-2.14: Guarda los cambios y devuelve el resultado."""
+        habit = self._stored_habit()
+
+        result = habit_form.update_habit_from_form(
+            habit,
+            HabitFormData(
+                name="Python avanzado",
+                start_date="01/10/2024",
+                icon="science",
+            ),
+            db_path=self.db_path,
+            today=TODAY,
+        )
+
+        assert result == habit_form.UpdateHabitResult(
+            habit_id=habit.id,
+            name="Python avanzado",
+            start_date=date(2024, 10, 1),
+            icon="science",
+        )
+
+        row = get_habit_db(habit.id, self.db_path)
+        assert row is not None
+        assert row.name == "Python avanzado"
+        assert row.start_date == "2024-10-01"
+        assert row.icon == "science"
+
+    def test_update_habit_from_form_does_not_touch_completions(self):
+        """RF-2.12: Los registros diarios permanecen intactos tras editar."""
+        habit = self._stored_habit()
+        mark_completed_db(habit.id, "2024-10-20", self.db_path)
+        mark_completed_db(habit.id, "2024-10-21", self.db_path)
+
+        habit_form.update_habit_from_form(
+            habit,
+            HabitFormData(
+                name="Python avanzado",
+                start_date="",
+                icon="science",
+            ),
+            db_path=self.db_path,
+            today=TODAY,
+        )
+
+        assert get_completions_db(habit.id, self.db_path) == [
+            "2024-10-20",
+            "2024-10-21",
+        ]
+        row = get_habit_db(habit.id, self.db_path)
+        assert row is not None
+        assert row.name == "Python avanzado"
+        assert row.icon == "science"

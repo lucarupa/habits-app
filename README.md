@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 173 pruebas puras + 40 con Flet (213 en `.venv`)
+- **pytest** — 179 pruebas puras + 40 con Flet (219 en `.venv`)
 
 ## Estado de implementación
 
@@ -27,18 +27,18 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 |------|-------------|:------:|--------|
 | Fase 1 | Dominio de edición (`core.py`) | 2 | ✅ Completada |
 | Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ✅ Completada |
-| Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ⬜ Pendiente |
+| Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ✅ Completada |
 | Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
 | Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **5 / 21 completadas** |
+| **Total** | | **21** | **7 / 21 completadas** |
 
-Las Fases 1 y 2 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
-dominio, y `storage.py` persiste la edición y el borrado transaccional del hábito con sus
-registros. La interfaz aún no ofrece edición, eliminación ni calendario de fecha. El detalle de
-cada tarea, con sus RF y criterios “Hecho cuando”, está en
-`specs/003-edit-delete-habits/tasks.md`.
+Las Fases 1, 2 y 3 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
+dominio, `storage.py` persiste la edición y el borrado transaccional, y `habit_form.py` valida
+la edición, conserva fecha e icono actuales y rechaza fechas futuras. La interfaz aún no ofrece
+edición, eliminación ni calendario de fecha. El detalle de cada tarea, con sus RF y criterios
+“Hecho cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
@@ -136,6 +136,9 @@ En `habits/app.py`:
   - `parse_start_date(value, today)` — interpreta `dd/mm/aaaa`; sin fecha o con fecha futura usa hoy y rechaza formatos o fechas inexistentes.
   - `validate_habit_form(data, today)` — exige nombre de 1 a 60 caracteres y normaliza fecha e icono.
   - `create_habit_from_form(data, db_path, today)` — valida y persiste el hábito, devolviendo su ID.
+  - `UpdateHabitResult` — resultado de una edición con su ID y los datos guardados.
+  - `validate_habit_update(habit, data, today)` — reutiliza las reglas de nombre, conserva la fecha y el icono actuales y rechaza fechas futuras.
+  - `update_habit_from_form(habit, data, db_path, today)` — valida la edición, delega en `update_habit` y `update_habit_db` y no modifica los registros diarios.
 - `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, fecha opcional e icono; ante un error permanece abierto y al guardar se cierra.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
@@ -274,7 +277,7 @@ tests/
 ├── test_storage.py  # Tests de persistencia (36 tests)
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
-├── test_habit_form.py # Tests del formulario modal (35 tests)
+├── test_habit_form.py # Tests del formulario modal (41 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
 ├── test_registration.py # Tests del registro del día actual (10 tests)
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
