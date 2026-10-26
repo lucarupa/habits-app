@@ -21,17 +21,22 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 
 ## Estado de implementación
 
-La base del MVP (spec 001) está completa. El rediseño de interfaz avanza por fases:
+Spec activa: **003 — Edición y eliminación de hábitos**.
 
-| Fase | Descripción | Estado |
-|------|-------------|--------|
-| Fase 1 | Dominio de estadísticas y heatmap | ✅ Completa |
-| Fase 2 | Icono en la tabla de hábitos | ✅ Completa |
-| Fase 3 | Barra lateral y panel de detalle | ✅ Completa |
-| Fase 4 | Diálogo modal de creación | ✅ Completa |
-| Fase 5 | Tarjetas de estadísticas y heatmap | ✅ Completa |
-| Fase 6 | Registro del día actual | ✅ Completa |
-| Fase 7 | Verificación final | ✅ Completa |
+| Fase | Descripción | Tareas | Estado |
+|------|-------------|:------:|--------|
+| Fase 1 | Dominio de edición (`core.py`) | 2 | ⬜ Pendiente |
+| Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ⬜ Pendiente |
+| Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ⬜ Pendiente |
+| Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ⬜ Pendiente |
+| Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
+| Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
+| Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
+| **Total** | | **21** | **0 / 21 completadas** |
+
+El código de la spec 003 aún no se ha empezado: la interfaz actual no ofrece edición,
+eliminación ni calendario de fecha. El detalle de cada tarea, con sus RF y criterios “Hecho
+cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
