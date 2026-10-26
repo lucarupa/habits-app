@@ -38,14 +38,25 @@ class FakeWindow:
     min_height = None
 
 
+class FakeView:
+    """Vista raíz mínima que contiene los controles añadidos a la página."""
+
+    def __init__(self):
+        self.controls = []
+
+
 class FakePage:
     """Página mínima que registra los diálogos abiertos y cerrados."""
 
     def __init__(self):
         self.open_dialogs = []
         self.updates = 0
-        self.views = []
+        self.views = [FakeView()]
         self.window = FakeWindow()
+
+    def add(self, *controls):
+        """Añadir controles a la vista raíz, como `flet.Page.add`."""
+        self.views[0].controls.extend(controls)
 
     def show_dialog(self, dialog):
         dialog.open = True
@@ -216,17 +227,19 @@ class TestHabitFormDialog:
 
         main(self.page, db_path=self.db_path)
 
-        layout = self.page.views[0].content
+        layout = self.page.views[0].controls[0].content
         sidebar = layout.controls[0]
         detail_column = layout.controls[1]
         header = detail_column.controls[0]
         stats_cards = detail_column.controls[1]
         heatmap = detail_column.controls[2]
-        empty_panel = detail_column.controls[3]
+        registration = detail_column.controls[3]
+        empty_panel = detail_column.controls[4]
 
         assert empty_panel.visible is True
         assert stats_cards.visible is False
         assert heatmap.visible is False
+        assert registration.visible is False
 
         sidebar.on_new()
         assert len(self.page.open_dialogs) == 1
@@ -251,6 +264,7 @@ class TestHabitFormDialog:
         assert empty_panel.visible is False
         assert stats_cards.visible is True
         assert heatmap.visible is True
+        assert registration.visible is True
         assert [card.value for card in stats_cards.cards] == [0, 0, 0]
         assert len(heatmap.rows) == 7
         assert sidebar.state.is_empty is False

@@ -152,6 +152,19 @@ class AppState:
         """Indicar si no hay ningún hábito registrado."""
         return not self.habits
 
+    @property
+    def is_completed_today(self) -> bool:
+        """Indicar si el hábito seleccionado ya está completado hoy.
+
+        Returns:
+            True si hay un hábito seleccionado y su fecha actual está entre
+            sus registros; False en caso contrario (RF-5.2, RF-5.4).
+        """
+        selected = self.selected
+        if selected is None:
+            return False
+        return self.today in selected.completed_dates
+
     def empty_state(self) -> EmptyState | None:
         """Construir el estado vacío, o None si ya existen hábitos.
 

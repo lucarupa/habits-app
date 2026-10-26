@@ -6,6 +6,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 
 - **Crear un hábito** con nombre (máx. 60 caracteres) y fecha de inicio opcional.
 - **Marcar un hábito como completado** para el día actual, con advertencia si ya fue registrado.
+- **Registrar hoy** desde el panel de detalle con la fecha actual y confirmación inmediata; los duplicados se rechazan.
 - **Listar hábitos** ordenados por racha de días consecutivos descendente, con desempate alfabético.
 - **Ver estadísticas** del hábito seleccionado: racha actual, mejor racha y días registrados.
 - **Heatmap de actividad** de las últimas 5 semanas, con días completados, no completados y futuros.
@@ -16,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 139 pruebas puras + 23 de interfaz con Flet (162 en `.venv`)
+- **pytest** — 149 pruebas puras + 31 de interfaz con Flet (180 en `.venv`)
 
 ## Estado de implementación
 
@@ -64,6 +65,7 @@ Las siguientes piezas en `habits/app_state.py` están completas y testeadas:
 - `HabitState` — agrupa un hábito, sus estadísticas y sus fechas completadas.
 - `AppState.stat_cards()` — devuelve las tres tarjetas con sus valores.
 - `AppState.heatmap_cells()` / `heatmap_rows()` — construyen las 35 celdas y las agrupan en 7 filas de lunes a domingo por 5 semanas.
+- `AppState.is_completed_today` — indica si el hábito seleccionado ya tiene un registro para la fecha actual.
 
 Este módulo no importa Flet: la interfaz solo consume el estado ya calculado (RFN-3).
 
@@ -105,6 +107,7 @@ En `habits/app.py`:
   - `create_habit_from_form(data, db_path, today)` — valida y persiste el hábito, devolviendo su ID.
 - `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, fecha opcional e icono; ante un error permanece abierto y al guardar se cierra.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
+- `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
 
 ### Estadísticas y heatmap
 
@@ -113,6 +116,15 @@ En `habits/app.py`:
 - `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados y la leyenda “No completado / Completado”.
 - `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap y estado vacío. Al registrar el día actual, las tres zonas se actualizan sin reiniciar la aplicación.
 - Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `core.py` y `app_state.py` nunca reciben atributos internos de control.
+
+### Registro del día actual
+
+- `habits/registration.py` — lógica pura del registro, sin Flet:
+  - `RegistrationResult` — indica si el guardado tuvo éxito y el mensaje para el usuario.
+  - `is_registered_today(habit_id, today, db_path)` — consulta si ya existe el registro del día.
+  - `register_today(habit_id, today, db_path)` — persiste el completado de hoy y devuelve “✅ Registro guardado”; si ya existía, devuelve “Ya registrado hoy” sin crear un duplicado.
+- `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy”.
+- `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Los datos permanecen al reiniciar la aplicación.
 
 ## Requisitos
 
@@ -134,7 +146,7 @@ pip install -r requirements.txt
 python -m habits.app
 ```
 
-La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas y el heatmap de 5 semanas. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
+La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas, el heatmap de 5 semanas y el panel “Registrar hoy”. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
 
 ## Ejecutar tests
 
@@ -142,7 +154,7 @@ La aplicación se abre en una ventana de escritorio con la barra lateral de háb
 pytest -q
 ```
 
-`tests/test_habit_dialog.py`, `tests/test_detail_widgets.py` y `tests/test_serialization.py` requieren Flet y se omiten automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
+`tests/test_habit_dialog.py`, `tests/test_detail_widgets.py`, `tests/test_serialization.py` y `tests/test_registration_widgets.py` requieren Flet y se omiten automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
 
 ```bash
 .venv\Scripts\python.exe -m pytest -q
@@ -186,8 +198,9 @@ habits/
 ├── storage.py       # Persistencia SQLite: CRUD de hábitos y registros
 ├── app_state.py     # Cargador de estado: une storage y core sin Flet
 ├── habit_form.py    # Validación y persistencia del formulario modal
+├── registration.py  # Registro del día actual y prevención de duplicados
 ├── theme.py         # Tema visual y dimensiones de ventana
-└── app.py           # Interfaz Flet: barra lateral, detalle y modal
+└── app.py           # Interfaz Flet: barra lateral, detalle, modal y registro
 tests/
 ├── test_core.py     # Tests de lógica de dominio (43 tests)
 ├── test_storage.py  # Tests de persistencia (31 tests)
@@ -195,9 +208,11 @@ tests/
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (35 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
+├── test_registration.py # Tests del registro del día actual (10 tests)
 ├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
 ├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (8 tests, requiere .venv)
-└── test_serialization.py # Regresión de serialización Flet (5 tests, requiere .venv)
+├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
+└── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 data/
 └── habits.db        # Base de datos SQLite (generada en runtime)
 docs/

@@ -140,18 +140,18 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 6: Registro del día actual
 
-- [ ] **Tarea 6.1:** Construir el panel “Registrar hoy”
+- [x] **Tarea 6.1:** Construir el panel “Registrar hoy”
   - **RF:** RF-5.1, RF-5.2, RF-5.5, RF-5.6
   - **Hecho cuando:** El panel muestra la fecha actual en dd/mm/aaaa y un botón “Guardar”
     habilitado cuando el hábito no está completado hoy; no hay selector de fecha, minutos ni
     “Quitar registro”.
 
-- [ ] **Tarea 6.2:** Implementar el guardado y la prevención de duplicados
+- [x] **Tarea 6.2:** Implementar el guardado y la prevención de duplicados
   - **RF:** RF-5.3, RF-5.4
   - **Hecho cuando:** “Guardar” persiste el día actual, muestra confirmación y actualiza la
     interfaz; si ya estaba completado, muestra “Ya registrado hoy” y no crea un duplicado.
 
-- [ ] **Tarea 6.3:** Verificar manualmente el flujo completo
+- [x] **Tarea 6.3:** Verificar manualmente el flujo completo
   - **RF:** RF-5
   - **Hecho cuando:** Se crea un hábito, se registra hoy, se ve la racha 1, se vuelve a pulsar
     Guardar y aparece el mensaje de duplicado; al reiniciar, los datos siguen visibles.

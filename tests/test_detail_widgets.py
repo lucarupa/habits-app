@@ -233,3 +233,27 @@ class TestRefreshAfterRegistration:
         assert self._today_cell(heatmap).bgcolor == ACCENT_GREEN
         assert HEATMAP_COMPLETED_LABEL in collect_texts(heatmap)
         assert "🔥 1 día" in collect_texts(sidebar)
+
+
+class TestCreateButtonLabels:
+    """Los CTA no duplican el “+” del texto con un icono adicional."""
+
+    def test_sidebar_new_button_does_not_repeat_the_plus(self):
+        """RF-1.6: el botón muestra “+ Nuevo” una sola vez."""
+        sidebar = Sidebar(state=AppState(today=TODAY))
+
+        button = sidebar.content.controls[0].controls[2]
+
+        assert button.content == "+ Nuevo"
+        assert button.icon is None
+
+    def test_empty_panel_button_does_not_repeat_the_plus(self):
+        """RF-6.3: el botón muestra “+ Crear hábito” una sola vez."""
+        from habits.app import EmptyDetailPanel
+
+        panel = EmptyDetailPanel(state=AppState(today=TODAY))
+
+        button = panel.content.controls[-1]
+
+        assert button.content == "+ Crear hábito"
+        assert button.icon is None

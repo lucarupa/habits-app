@@ -24,6 +24,7 @@ from habits.app import (
     HabitDetailHeader,
     HabitStatsCards,
     Sidebar,
+    TodayRegistrationPanel,
 )
 from habits.app_state import AppState, load_app_state
 from habits.storage import create_habit_db, init_db, mark_completed_db
@@ -89,3 +90,7 @@ class TestControlSerialization:
     def test_empty_panel_serializes_after_state_refresh(self):
         """El estado vacío no debe atravesar `AppState`."""
         self._refresh_with(EmptyDetailPanel(state=self.before), self.after)
+
+    def test_registration_panel_serializes_after_state_refresh(self):
+        """El panel de registro no debe atravesar `AppState`."""
+        self._refresh_with(TodayRegistrationPanel(state=self.before), self.after)

@@ -41,6 +41,12 @@ from habits.habit_form import (
     HabitFormData,
     create_habit_from_form,
 )
+from habits.registration import (
+    REGISTRATION_BUTTON_LABEL,
+    REGISTRATION_DUPLICATE_MESSAGE,
+    REGISTRATION_TITLE,
+    register_today,
+)
 from habits.theme import (
     ACCENT_GREEN,
     BACKGROUND,
@@ -147,7 +153,6 @@ class Sidebar(ft.Container):
                         ft.Container(expand=True),
                         ft.Button(
                             content="+ Nuevo",
-                            icon=ft.Icons.ADD,
                             on_click=self._handle_new,
                         ),
                     ],
@@ -500,6 +505,95 @@ class ActivityHeatmap(ft.Container):
 
 
 @ft.control
+class TodayRegistrationPanel(ft.Container):
+    """Panel “Registrar hoy” del hábito seleccionado.
+
+    Tarea 6.1, RF-5.1, RF-5.2, RF-5.5 y RF-5.6. Muestra la fecha actual en
+    dd/mm/aaaa y un botón “Guardar”; no incluye selector de fecha, minutos ni
+    “Quitar registro”. Si el hábito ya está completado hoy muestra el mensaje
+    “Ya registrado hoy” (RF-5.4).
+    """
+
+    state: AppState | None = skip_field()
+    on_save: Callable[[], None] | None = None
+    message: str = ""
+    _date_text: ft.Text | None = None
+    _save_button: ft.Button | None = None
+    _message_text: ft.Text | None = None
+    _body: ft.Column | None = None
+
+    def init(self):
+        self.padding = 16
+        self.border_radius = 12
+        self.bgcolor = SURFACE
+        self._date_text = ft.Text(size=14, color=TEXT_PRIMARY)
+        self._save_button = ft.Button(
+            content=REGISTRATION_BUTTON_LABEL,
+            on_click=self._handle_save,
+        )
+        self._message_text = ft.Text(
+            value="",
+            size=14,
+            color=TEXT_SECONDARY,
+            visible=False,
+        )
+        self._body = ft.Column(
+            controls=[
+                ft.Text(
+                    REGISTRATION_TITLE,
+                    size=16,
+                    weight="bold",
+                    color=TEXT_PRIMARY,
+                ),
+                ft.Row(
+                    controls=[
+                        ft.Text(
+                            "Fecha",
+                            size=12,
+                            color=TEXT_SECONDARY,
+                        ),
+                        self._date_text,
+                        self._save_button,
+                    ],
+                    spacing=12,
+                    vertical_alignment="center",
+                ),
+                self._message_text,
+            ],
+            spacing=8,
+        )
+        self.content = self._body
+        self.refresh()
+
+    def refresh(self):
+        """Actualizar fecha, botón y mensaje desde el estado actual."""
+        if self._body is None:
+            return
+
+        selected = self.state.selected if self.state is not None else None
+        self.visible = selected is not None
+        if selected is None:
+            self.message = ""
+            self._message_text.value = ""
+            self._message_text.visible = False
+            return
+
+        self._date_text.value = format_date_label(self.state.today)
+        if not self.state.is_completed_today:
+            self.message = ""
+        elif not self.message:
+            self.message = REGISTRATION_DUPLICATE_MESSAGE
+
+        self._message_text.value = self.message
+        self._message_text.visible = bool(self.message)
+
+    def _handle_save(self, event):
+        """Delegar el guardado en la vista principal (RF-5.3)."""
+        if self.on_save is not None:
+            self.on_save()
+
+
+@ft.control
 class EmptyDetailPanel(ft.Container):
     """Estado vacío del panel principal cuando no hay hábitos.
 
@@ -530,7 +624,6 @@ class EmptyDetailPanel(ft.Container):
                 ),
                 ft.Button(
                     content=EMPTY_BUTTON_LABEL,
-                    icon=ft.Icons.ADD,
                     on_click=self._handle_create,
                 ),
             ],
@@ -1085,10 +1178,11 @@ def configure_page(page: ft.Page) -> None:
 def main(page: ft.Page, db_path: str = "data/habits.db"):
     """Punto de entrada de la aplicación Flet.
 
-    Tareas 3.5, 4.1 a 4.4 y 5.1 a 5.3: aplica el tema, monta el layout de dos
-    zonas, conecta la creación modal y muestra las estadísticas y el heatmap
-    del hábito seleccionado. Al recargar el estado, todas las zonas del
-    detalle se actualizan sin reiniciar la aplicación.
+    Tareas 3.5, 4.1 a 4.4, 5.1 a 5.3 y 6.1 a 6.3: aplica el tema, monta el
+    layout de dos zonas, conecta la creación modal y muestra las estadísticas,
+    el heatmap y el panel “Registrar hoy” del hábito seleccionado. Al
+    registrar el día actual, todas las zonas se actualizan sin reiniciar la
+    aplicación y los duplicados se rechazan.
 
     Args:
         page: Página Flet proporcionada por `ft.run`.
@@ -1102,10 +1196,11 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
     header = HabitDetailHeader(state=state)
     stats_cards = HabitStatsCards(state=state)
     heatmap = ActivityHeatmap(state=state)
+    registration = TodayRegistrationPanel(state=state)
     empty_panel = EmptyDetailPanel(state=state)
 
     detail_column = ft.Column(
-        controls=[header, stats_cards, heatmap, empty_panel],
+        controls=[header, stats_cards, heatmap, registration, empty_panel],
         spacing=16,
         expand=True,
         scroll=ft.ScrollMode.AUTO,
@@ -1136,11 +1231,13 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         header.state = state
         stats_cards.state = state
         heatmap.state = state
+        registration.state = state
         empty_panel.state = state
         sidebar.refresh()
         header.refresh()
         stats_cards.refresh()
         heatmap.refresh()
+        registration.refresh()
         empty_panel.refresh()
         page.update()
 
@@ -1149,8 +1246,21 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         header.refresh()
         stats_cards.refresh()
         heatmap.refresh()
+        registration.refresh()
         empty_panel.refresh()
         page.update()
+
+    def on_register_today() -> None:
+        """Registrar el día actual y refrescar la interfaz (RF-5.3, RF-5.4)."""
+        selected = state.selected
+        if selected is None:
+            return
+
+        result = register_today(
+            selected.habit.id, state.today, db_path=db_path
+        )
+        registration.message = result.message
+        refresh_views(selected_id=selected.habit.id)
 
     def on_habit_created(result: CreateHabitResult) -> None:
         """Refrescar la interfaz y seleccionar el hábito creado (RF-2.9)."""
@@ -1168,11 +1278,10 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
 
     sidebar.on_select = on_select
     sidebar.on_new = open_create_dialog
+    registration.on_save = on_register_today
     empty_panel.on_create = open_create_dialog
 
-    page.views.clear()
-    page.views.append(ft.Container(content=layout, padding=16, expand=True))
-    page.update()
+    page.add(ft.Container(content=layout, padding=16, expand=True))
 
 
 if __name__ == "__main__":
