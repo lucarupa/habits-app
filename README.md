@@ -211,11 +211,16 @@ pytest --cov=habits --cov-report=term-missing
 Usa el comando integrado de Flet para empaquetar la aplicación:
 
 ```bash
-pip install flet[cli]
-flet pack habits/app.py
+pip install "flet[cli]" pyinstaller
+flet pack habits/app.py --name "Habits App" --icon img/icon.ico
 ```
 
-Esto genera un ejecutable independiente en el directorio `dist/` sin necesidad de Python instalado en el equipo del usuario.
+`flet pack` usa PyInstaller internamente. Si aparece el error
+`Please install PyInstaller module to use flet pack command`, instala el módulo con
+`pip install pyinstaller` dentro del mismo entorno virtual. PyInstaller es una herramienta de
+empaquetado, no una dependencia de ejecución de la app, por eso no figura en
+`requirements.txt`. El comando anterior genera un ejecutable independiente en el directorio
+`dist/` sin necesidad de Python instalado en el equipo del usuario.
 
 Opciones útiles:
 
