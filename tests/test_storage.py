@@ -1,9 +1,11 @@
 # spec: 001-habits-mvp
+# spec: 002-ui-redesign
 """Tests para la capa de persistencia SQLite — Tarea 4.1, RFN-3."""
 
 import os
 import sqlite3
 import tempfile
+from contextlib import closing
 from datetime import date
 from habits.storage import (
     init_db, create_habit_db, get_habit_db,
@@ -107,6 +109,109 @@ class TestInitDb:
         assert "completions" in tables
         conn.close()
 
+    def _create_legacy_db(self) -> None:
+        """Crear una base con el esquema anterior, sin columna icon."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            """
+            CREATE TABLE habits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                start_date TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE completions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit_id INTEGER NOT NULL,
+                completed_date TEXT NOT NULL,
+                UNIQUE(habit_id, completed_date),
+                FOREIGN KEY (habit_id) REFERENCES habits(id)
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO habits (name, start_date) VALUES (?, ?)",
+            ("Leer", "2024-01-01"),
+        )
+        conn.execute(
+            "INSERT INTO completions (habit_id, completed_date) VALUES (?, ?)",
+            (1, "2024-01-02"),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_init_db_creates_icon_column(self):
+        """RF-2.8: Una base nueva incluye la columna icon con valor por defecto."""
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(habits)")}
+            assert "icon" in columns
+
+            conn.execute(
+                "INSERT INTO habits (name, start_date) VALUES (?, ?)",
+                ("Leer", "2024-01-01"),
+            )
+            conn.commit()
+            icon = conn.execute(
+                "SELECT icon FROM habits WHERE id = 1"
+            ).fetchone()[0]
+
+        assert icon == "book"
+
+    def test_init_db_migrates_existing_habits(self):
+        """RF-2.9: Una base antigua recibe icon con valor por defecto."""
+        self._create_legacy_db()
+
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            row = conn.execute(
+                "SELECT name, start_date, icon FROM habits WHERE id = 1"
+            ).fetchone()
+
+        assert row == ("Leer", "2024-01-01", "book")
+
+    def test_init_db_migration_preserves_data(self):
+        """RF-2.9, RFN-1: La migración conserva hábitos y registros."""
+        self._create_legacy_db()
+
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            habit = conn.execute(
+                "SELECT name, start_date FROM habits WHERE id = 1"
+            ).fetchone()
+            completion = conn.execute(
+                "SELECT habit_id, completed_date FROM completions WHERE id = 1"
+            ).fetchone()
+
+        assert habit == ("Leer", "2024-01-01")
+        assert completion == (1, "2024-01-02")
+
+    def test_init_db_migration_is_idempotent(self):
+        """RF-2.9, RFN-3: Migrar dos veces no duplica ni falla."""
+        self._create_legacy_db()
+
+        init_db(self.db_path)
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            columns = [
+                row[1] for row in conn.execute("PRAGMA table_info(habits)")
+            ]
+            row = conn.execute(
+                "SELECT name, start_date, icon FROM habits WHERE id = 1"
+            ).fetchone()
+            total = conn.execute("SELECT COUNT(*) FROM habits").fetchone()[0]
+
+        assert columns.count("icon") == 1
+        assert row == ("Leer", "2024-01-01", "book")
+        assert total == 1
+
 
 class TestCreateHabitDb:
     """Tests para create_habit_db() y get_habit_db() — Tarea 4.2, RF-1."""
@@ -157,6 +262,39 @@ class TestCreateHabitDb:
         habit = get_habit_db(habit_id, db_path=self.db_path)
 
         assert habit.start_date == past_date
+
+    def test_create_habit_persists_icon(self):
+        """RF-2.8: El icono se guarda y se lee de vuelta."""
+        today = date.today().isoformat()
+        habit_id = create_habit_db(
+            "Estudiar Python", today, icon="code", db_path=self.db_path
+        )
+
+        habit = get_habit_db(habit_id, db_path=self.db_path)
+
+        assert habit is not None
+        assert habit.icon == "code"
+
+    def test_create_habit_db_default_icon(self):
+        """RF-2.6: Sin icono se guarda el valor por defecto."""
+        today = date.today().isoformat()
+        habit_id = create_habit_db("Leer", today, db_path=self.db_path)
+
+        habit = get_habit_db(habit_id, db_path=self.db_path)
+
+        assert habit is not None
+        assert habit.icon == "book"
+
+    def test_get_habit_db_returns_icon(self):
+        """RF-2.8: get_habit_db devuelve el icono del hábito."""
+        today = date.today().isoformat()
+        habit_id = create_habit_db(
+            "Laboratorio", today, icon="science", db_path=self.db_path
+        )
+
+        habit = get_habit_db(habit_id, db_path=self.db_path)
+
+        assert habit.icon == "science"
 
 
 class TestMarkCompletedDb:
@@ -277,6 +415,16 @@ class TestListAllHabitsDb:
         assert len(result) == 2
         assert result[0].id == id_1
         assert result[1].id == id_2
+
+    def test_list_all_habits_db_returns_icon(self):
+        """RF-2.8: El listado incluye el icono de cada hábito."""
+        today = date.today().isoformat()
+        create_habit_db("Estudiar Python", today, icon="code", db_path=self.db_path)
+        create_habit_db("Leer 30 minutos", today, icon="book", db_path=self.db_path)
+
+        result = list_all_habits_db(db_path=self.db_path)
+
+        assert [habit.icon for habit in result] == ["code", "book"]
 
     def test_get_completions_for_habit(self):
         """RF-1, RF-2.2 (T5.1): Obtener los registros de completado de un hábito específico."""

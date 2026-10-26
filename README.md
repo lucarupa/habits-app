@@ -14,7 +14,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — pruebas unitarias (66 tests pasando)
+- **pytest** — pruebas unitarias (74 tests pasando)
 
 ## Estado de implementación
 
@@ -45,12 +45,12 @@ Las siguientes funciones en `habits/core.py` están completas y testeadas:
 
 Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 
-- `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen.
-- `create_habit_db(name, start_date, db_path)` — inserta un hábito y retorna su ID.
-- `get_habit_db(habit_id, db_path)` — lee un hábito por ID.
+- `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen, y migra bases antiguas añadiendo la columna `icon` (valor por defecto `book`).
+- `create_habit_db(name, start_date, icon, db_path)` — inserta un hábito con su icono y retorna su ID.
+- `get_habit_db(habit_id, db_path)` — lee un hábito por ID, incluido su icono.
 - `mark_completed_db(habit_id, completed_date, db_path)` — registra un completado.
 - `is_completed_today_db(habit_id, today, db_path)` — verifica si un hábito ya está marcado hoy.
-- `list_all_habits_db(db_path)` — obtiene todos los hábitos registrados.
+- `list_all_habits_db(db_path)` — obtiene todos los hábitos registrados, incluidos sus iconos.
 - `get_completions_db(habit_id, db_path)` — obtiene las fechas de completado de un hábito.
 
 ## Requisitos
@@ -119,8 +119,8 @@ habits/
 ├── storage.py       # Persistencia SQLite: CRUD de hábitos y registros
 └── app.py           # Interfaz Flet (creación y lista con rachas implementadas)
 tests/
-├── test_core.py     # Tests de lógica de dominio (23 tests)
-└── test_storage.py  # Tests de persistencia (23 tests)
+├── test_core.py     # Tests de lógica de dominio (43 tests)
+└── test_storage.py  # Tests de persistencia (31 tests)
 data/
 └── habits.db        # Base de datos SQLite (generada en runtime)
 docs/

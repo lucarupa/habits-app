@@ -39,23 +39,23 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 2: Persistencia del icono (`storage.py`)
 
-- [ ] **Tarea 2.1:** Escribir tests de migración y columna `icon`
+- [x] **Tarea 2.1:** Escribir tests de migración y columna `icon`
   - **RF:** RF-2.8, RF-2.9
   - **Hecho cuando:** Los tests fallan inicialmente y cubren: base nueva con columna `icon`,
     base antigua migrada con valor `book`, y conservación de hábitos y registros.
 
-- [ ] **Tarea 2.2:** Implementar la columna `icon` y la migración en `init_db`
+- [x] **Tarea 2.2:** Implementar la columna `icon` y la migración en `init_db`
   - **RF:** RF-2.8, RF-2.9, RFN-1
   - **Hecho cuando:** Una base nueva crea `icon TEXT NOT NULL DEFAULT 'book'`; una base
     existente recibe la columna sin perder datos y `init_db` sigue siendo idempotente.
 
-- [ ] **Tarea 2.3:** Actualizar `HabitRow`, `create_habit_db`, `get_habit_db` y
+- [x] **Tarea 2.3:** Actualizar `HabitRow`, `create_habit_db`, `get_habit_db` y
   `list_all_habits_db` para devolver el icono
   - **RF:** RF-2.8
   - **Hecho cuando:** El icono se guarda y se lee de vuelta; los tests existentes de creación,
     lectura y listado siguen pasando; los nuevos tests de icono pasan.
 
-- [ ] **Tarea 2.4:** Verificar cobertura de `habits/storage.py`
+- [x] **Tarea 2.4:** Verificar cobertura de `habits/storage.py`
   - **RF:** RFN-4, RFN-1
   - **Hecho cuando:** `pytest --cov=habits.storage --cov-report=term-missing` muestra ≥80 % y
     la suite completa pasa.

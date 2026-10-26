@@ -1,9 +1,12 @@
 # spec: 001-habits-mvp
+# spec: 002-ui-redesign
 """Persistencia SQLite: CRUD de hábitos y registros diarios."""
 
 from dataclasses import dataclass
 import sqlite3
 import os
+
+from habits.core import DEFAULT_ICON
 
 
 @dataclass
@@ -14,17 +17,21 @@ class HabitRow:
         id: Identificador único.
         name: Nombre del hábito.
         start_date: Fecha de inicio en formato YYYY-MM-DD.
+        icon: Clave semántica del icono elegido.
     """
     id: int
     name: str
     start_date: str
+    icon: str = DEFAULT_ICON
 
 
 def init_db(db_path: str = "data/habits.db") -> None:
     """Inicializar la base de datos creando las tablas si no existen.
 
     Crea las tablas `habits` y `completions` según el modelo de datos del plan.
-    La función es idempotenta: llamarla varias veces no causa errores.
+    Si la tabla `habits` ya existe sin la columna `icon`, la añade con el valor
+    por defecto `book` sin modificar los datos existentes. La función es
+    idempotenta: llamarla varias veces no causa errores ni duplica columnas.
 
     Args:
         db_path: Ruta al archivo de base de datos SQLite.
@@ -39,7 +46,8 @@ def init_db(db_path: str = "data/habits.db") -> None:
         CREATE TABLE IF NOT EXISTS habits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            start_date TEXT NOT NULL
+            start_date TEXT NOT NULL,
+            icon TEXT NOT NULL DEFAULT 'book'
         )
         """
     )
@@ -56,18 +64,28 @@ def init_db(db_path: str = "data/habits.db") -> None:
         """
     )
 
+    columns = {row[1] for row in cursor.execute("PRAGMA table_info(habits)")}
+    if "icon" not in columns:
+        cursor.execute(
+            "ALTER TABLE habits ADD COLUMN icon TEXT NOT NULL DEFAULT 'book'"
+        )
+
     conn.commit()
     conn.close()
 
 
 def create_habit_db(
-    name: str, start_date: str, db_path: str = "data/habits.db"
+    name: str,
+    start_date: str,
+    icon: str = DEFAULT_ICON,
+    db_path: str = "data/habits.db",
 ) -> int:
     """Crear un hábito en la base de datos.
 
     Args:
         name: Nombre del hábito.
         start_date: Fecha de inicio en formato YYYY-MM-DD.
+        icon: Clave semántica del icono elegido.
         db_path: Ruta al archivo de base de datos SQLite.
 
     Returns:
@@ -76,8 +94,8 @@ def create_habit_db(
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO habits (name, start_date) VALUES (?, ?)",
-        (name, start_date)
+        "INSERT INTO habits (name, start_date, icon) VALUES (?, ?, ?)",
+        (name, start_date, icon)
     )
     conn.commit()
     habit_id = cursor.lastrowid
@@ -100,7 +118,7 @@ def get_habit_db(
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.execute(
-        "SELECT id, name, start_date FROM habits WHERE id = ?",
+        "SELECT id, name, start_date, icon FROM habits WHERE id = ?",
         (habit_id,)
     )
     row = cursor.fetchone()
@@ -109,7 +127,12 @@ def get_habit_db(
     if row is None:
         return None
 
-    return HabitRow(id=row["id"], name=row["name"], start_date=row["start_date"])
+    return HabitRow(
+        id=row["id"],
+        name=row["name"],
+        start_date=row["start_date"],
+        icon=row["icon"],
+    )
 
 
 def mark_completed_db(
@@ -177,13 +200,18 @@ def list_all_habits_db(db_path: str = "data/habits.db") -> list[HabitRow]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.execute(
-        "SELECT id, name, start_date FROM habits ORDER BY id"
+        "SELECT id, name, start_date, icon FROM habits ORDER BY id"
     )
     rows = cursor.fetchall()
     conn.close()
 
     return [
-        HabitRow(id=row["id"], name=row["name"], start_date=row["start_date"])
+        HabitRow(
+            id=row["id"],
+            name=row["name"],
+            start_date=row["start_date"],
+            icon=row["icon"],
+        )
         for row in rows
     ]
 
