@@ -17,19 +17,40 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 149 pruebas puras + 31 de interfaz con Flet (180 en `.venv`)
+- **pytest** — 162 pruebas puras + 38 con Flet (200 en `.venv`)
 
 ## Estado de implementación
 
+La base del MVP (spec 001) está completa. El rediseño de interfaz avanza por fases:
+
 | Fase | Descripción | Estado |
 |------|-------------|--------|
-| Fase 1 | Preparación del proyecto | ✅ Completa |
-| Fase 2 | Modelo de dominio (`core.py`) | ✅ Completa |
-| Fase 3 | Tests de lógica de dominio | ✅ Completa |
-| Fase 4 | Persistencia SQLite (`storage.py`) | ✅ Completa |
-| Fase 5 | Tests de persistencia | ✅ Completa |
-| Fase 6 | Interfaz Flet (`app.py`) | ✅ Completa |
+| Fase 1 | Dominio de estadísticas y heatmap | ✅ Completa |
+| Fase 2 | Icono en la tabla de hábitos | ✅ Completa |
+| Fase 3 | Barra lateral y panel de detalle | ✅ Completa |
+| Fase 4 | Diálogo modal de creación | ✅ Completa |
+| Fase 5 | Tarjetas de estadísticas y heatmap | ✅ Completa |
+| Fase 6 | Registro del día actual | ✅ Completa |
 | Fase 7 | Verificación final | ✅ Completa |
+
+## Diseño de la interfaz
+
+La ventana se divide en dos zonas sin desplazamiento horizontal: una barra lateral fija de
+280 px y un panel de detalle que ocupa el resto del ancho.
+
+- **Barra lateral** — cabecera “Mis hábitos” con el botón verde “+ Nuevo”, y la lista de hábitos
+  ordenada por racha descendente. Cada elemento muestra el icono y el nombre a la izquierda y la
+  racha a la derecha; el hábito seleccionado se resalta con fondo y un indicador lateral.
+- **Panel de detalle** — encabezado con el icono, el nombre, el subtítulo “Hábito de estudio”
+  y la fecha de inicio; debajo aparecen las tres tarjetas de estadísticas (con su icono), el
+  heatmap de actividad con etiquetas de días y el panel “Registrar hoy”.
+- **Estado vacío** — cuando no hay hábitos, el detalle invita a crear el primero con el botón
+  “+ Crear hábito” y la barra lateral muestra “No hay hábitos aún”.
+- **Diálogo modal** — “+ Nuevo” y “+ Crear hábito” abren el mismo formulario sin abandonar la
+  vista; al guardar se selecciona el hábito recién creado.
+- **Tema** — fondo crema, superficies claras y acentos verdes; ventana inicial de 1120×720
+  con mínimo de 960×600. La ventana y el ejecutable usan el icono de `img/icon.ico`
+  (generado a partir de `img/icon.jpg`).
 
 ### Lógica de dominio implementada
 
@@ -109,12 +130,31 @@ En `habits/app.py`:
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
 
+## Iconos
+
+Cada hábito guarda una clave semántica en la columna `icon`; la interfaz la traduce a un
+icono de Flet con `icon_for_habit()`. El valor por defecto es `book`.
+
+| Clave | Etiqueta | Icono de Flet |
+|-------|----------|---------------|
+| `book` | Libro | `MENU_BOOK` |
+| `code` | Código | `CODE` |
+| `science` | Ciencia | `SCIENCE` |
+| `language` | Idioma | `TRANSLATE` |
+| `music` | Música | `MUSIC_NOTE` |
+| `art` | Arte | `PALETTE` |
+| `math` | Matemáticas | `CALCULATE` |
+| `fitness` | Ejercicio | `FITNESS_CENTER` |
+
+El catálogo visible se define en `ICON_CATALOG` e `ICON_LABELS` (`habits/habit_form.py`). Un
+icono desconocido o una base antigua sin icono se resuelven con `book`.
+
 ### Estadísticas y heatmap
 
 - `StatCard` — modelo puro con el título y el valor de cada tarjeta.
 - `HabitStatsCards` — muestra “Racha actual”, “Mejor racha” y “Días registrados”; sin registros, las tres valen 0.
 - `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados y la leyenda “No completado / Completado”.
-- `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap y estado vacío. Al registrar el día actual, las tres zonas se actualizan sin reiniciar la aplicación.
+- `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap, panel de registro y estado vacío. Al registrar el día actual, todas las zonas se actualizan sin reiniciar la aplicación.
 - Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `core.py` y `app_state.py` nunca reciben atributos internos de control.
 
 ### Registro del día actual
@@ -184,7 +224,7 @@ Opciones útiles:
 flet pack habits/app.py --name "Habits App"
 
 # Incluir icono personalizado
-flet pack habits/app.py --icon icon.png
+flet pack habits/app.py --icon img/icon.ico
 ```
 
 Para más opciones, consulta la [documentación de `flet pack`](https://flet.dev/docs/cli/flet-pack).
@@ -209,19 +249,30 @@ tests/
 ├── test_habit_form.py # Tests del formulario modal (35 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
 ├── test_registration.py # Tests del registro del día actual (10 tests)
+├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
+├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
+├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
+├── test_window_icon.py # Icono personalizado de la ventana (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
-├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (8 tests, requiere .venv)
+├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 data/
 └── habits.db        # Base de datos SQLite (generada en runtime)
+img/
+├── icon.jpg         # Icono original de la aplicación
+└── icon.ico         # Icono multi-tamaño para la ventana y el ejecutable
 docs/
 └── constitution.md  # 6 principios innegociables del proyecto
 specs/
-└── 001-habits-mvp/
-    ├── spec.md      # Especificación funcional del MVP
-    ├── plan.md      # Plan de implementación técnica
-    └── tasks.md     # Tareas de implementación con checklist
+├── 001-habits-mvp/
+│   ├── spec.md      # Especificación funcional del MVP
+│   ├── plan.md      # Plan de implementación técnica
+│   └── tasks.md     # Tareas de implementación con checklist
+└── 002-ui-redesign/
+    ├── spec.md      # Especificación del rediseño de interfaz
+    ├── plan.md      # Plan técnico de estadísticas, heatmap e iconos
+    └── tasks.md     # Checklist de implementación del rediseño
 ```
 
 ## Documentación

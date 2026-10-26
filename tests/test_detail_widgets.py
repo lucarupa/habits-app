@@ -12,6 +12,8 @@ import pytest
 
 pytest.importorskip("flet")
 
+import flet as ft
+
 from habits.app import ActivityHeatmap, HabitStatsCards, Sidebar
 from habits.app_state import (
     HEATMAP_COMPLETED_LABEL,
@@ -80,9 +82,20 @@ class TestHabitStatsCards:
         assert [card.value for card in cards.cards] == [2, 2, 2]
         assert len(cards._cards_row.controls) == 3
 
-        for control, card in zip(cards._cards_row.controls, cards.cards):
-            label, value = control.content.controls
-            assert label.value == card.label
+        for control, card, expected_icon in zip(
+            cards._cards_row.controls,
+            cards.cards,
+            [
+                ft.Icons.LOCAL_FIRE_DEPARTMENT,
+                ft.Icons.STAR,
+                ft.Icons.CALENDAR_MONTH,
+            ],
+        ):
+            label_row, value = control.content.controls
+            assert label_row.controls[0].value == card.label
+            icon = label_row.controls[-1]
+            assert isinstance(icon, ft.Icon)
+            assert icon.icon == expected_icon
             assert value.value == str(card.value)
 
     def test_shows_zeros_without_records(self):
@@ -141,6 +154,17 @@ class TestActivityHeatmap:
         assert all(len(row) == 5 for row in heatmap.rows)
         assert len(heatmap._grid.controls) == 7
         assert all(len(row.controls) == 5 for row in heatmap._grid.controls)
+
+    def test_shows_weekday_labels(self):
+        """RF-4.1: cada fila del heatmap lleva su día de la semana."""
+        state = self._load_state()
+        heatmap = ActivityHeatmap(state=state)
+
+        labels = [
+            control.value for control in heatmap._weekday_labels.controls
+        ]
+
+        assert labels == ["L", "M", "X", "J", "V", "S", "D"]
 
     def test_shows_title_and_legend(self):
         """RF-4.1, RF-4.5: Título y leyenda visibles."""
@@ -246,6 +270,7 @@ class TestCreateButtonLabels:
 
         assert button.content == "+ Nuevo"
         assert button.icon is None
+        assert isinstance(button, ft.FilledButton)
 
     def test_empty_panel_button_does_not_repeat_the_plus(self):
         """RF-6.3: el botón muestra “+ Crear hábito” una sola vez."""
@@ -257,3 +282,34 @@ class TestCreateButtonLabels:
 
         assert button.content == "+ Crear hábito"
         assert button.icon is None
+        assert isinstance(button, ft.FilledButton)
+
+
+class TestSidebarItemLayout:
+    """La racha se muestra a la derecha del nombre, como en el mockup."""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        habit_id = create_habit_db(
+            "Leer", "2024-10-01", icon="book", db_path=self.db_path
+        )
+        mark_completed_db(
+            habit_id, TODAY.isoformat(), db_path=self.db_path
+        )
+        self.state = load_app_state(self.db_path, today=TODAY)
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_streak_is_shown_next_to_the_name(self):
+        """RF-1.2: icono y nombre a la izquierda; racha a la derecha."""
+        sidebar = Sidebar(state=self.state)
+
+        row = sidebar._items_column.controls[0].content
+
+        assert isinstance(row.controls[1], ft.Icon)
+        assert row.controls[2].value == "Leer"
+        assert row.controls[3].value == "🔥 1 día"

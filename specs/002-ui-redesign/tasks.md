@@ -160,28 +160,28 @@ siguen un enfoque TDD: primero el test que falla, después la implementación.
 
 ## Fase 7: Verificación final
 
-- [ ] **Tarea 7.1:** Actualizar `README.md` con el nuevo diseño y las estadísticas
+- [x] **Tarea 7.1:** Actualizar `README.md` con el nuevo diseño y las estadísticas
   - **RF:** Documentación
   - **Hecho cuando:** El README describe la barra lateral, el detalle, las tres estadísticas,
     el heatmap, los iconos y cómo ejecutar la app y los tests.
 
-- [ ] **Tarea 7.2:** Ejecutar la suite completa y la cobertura
+- [x] **Tarea 7.2:** Ejecutar la suite completa y la cobertura
   - **RF:** RFN-4
   - **Hecho cuando:** `pytest -q` retorna 0 fallos y la cobertura de `core.py` y `storage.py`
     es ≥80 %.
 
-- [ ] **Tarea 7.3:** Verificar manualmente los criterios de finalización y los RFN de la spec 002
+- [x] **Tarea 7.3:** Verificar manualmente los criterios de finalización y los RFN de la spec 002
   - **RF:** Todos
   - **Hecho cuando:** Se cumplen los 8 criterios de finalización de
     `specs/002-ui-redesign/spec.md`, la app inicia en menos de 3 segundos, funciona sin
     conexión y no se añadieron dependencias externas no aprobadas.
 
-- [ ] **Tarea 7.4:** Comparar la interfaz con los mockups y ajustar detalles visuales
+- [x] **Tarea 7.4:** Comparar la interfaz con los mockups y ajustar detalles visuales
   - **RF:** RF-7
   - **Hecho cuando:** La barra lateral, el detalle, las tarjetas, el heatmap, el modal y el
     estado vacío se aproximan a los mockups sin añadir funcionalidades fuera de alcance.
 
-- [ ] **Tarea 7.5:** Revisar que no se haya añadido nada fuera de alcance
+- [x] **Tarea 7.5:** Revisar que no se haya añadido nada fuera de alcance
   - **RF:** RF-5.5
   - **Hecho cuando:** No existen minutos, sesiones, “Quitar registro”, Ajustes ni Progreso, y
     la suite sigue pasando.

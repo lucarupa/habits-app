@@ -8,6 +8,7 @@ Constitución principio 3: la capa de interfaz nunca contiene cálculos ni acces
 """
 
 from datetime import date
+from pathlib import Path
 from typing import Any, Callable
 
 import flet as ft
@@ -27,6 +28,9 @@ from habits.app_state import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
     HEATMAP_TITLE,
+    STAT_BEST_STREAK_LABEL,
+    STAT_CURRENT_STREAK_LABEL,
+    STAT_REGISTERED_DAYS_LABEL,
     AppState,
     SidebarItem,
     StatCard,
@@ -84,6 +88,16 @@ ICON_BY_KEY = {
     "fitness": ft.Icons.FITNESS_CENTER,
 }
 DEFAULT_SIDEBAR_ICON = ft.Icons.MENU_BOOK
+
+STAT_CARD_ICONS = {
+    STAT_CURRENT_STREAK_LABEL: ft.Icons.LOCAL_FIRE_DEPARTMENT,
+    STAT_BEST_STREAK_LABEL: ft.Icons.STAR,
+    STAT_REGISTERED_DAYS_LABEL: ft.Icons.CALENDAR_MONTH,
+}
+
+WEEKDAY_LABELS = ("L", "M", "X", "J", "V", "S", "D")
+
+APP_ICON_PATH = Path(__file__).resolve().parent.parent / "img" / "icon.ico"
 
 
 def icon_for_habit(icon_key: str):
@@ -151,7 +165,7 @@ class Sidebar(ft.Container):
                     controls=[
                         ft.Text("Mis hábitos", size=20, weight="bold"),
                         ft.Container(expand=True),
-                        ft.Button(
+                        ft.FilledButton(
                             content="+ Nuevo",
                             on_click=self._handle_new,
                         ),
@@ -220,22 +234,17 @@ class Sidebar(ft.Container):
                         size=18,
                         color=text_color,
                     ),
-                    ft.Column(
-                        controls=[
-                            ft.Text(
-                                item.name,
-                                size=14,
-                                weight="medium",
-                                color=text_color,
-                            ),
-                            ft.Text(
-                                format_streak_label(item.streak),
-                                size=12,
-                                color=TEXT_SECONDARY,
-                            ),
-                        ],
-                        spacing=2,
+                    ft.Text(
+                        item.name,
+                        size=14,
+                        weight="medium",
+                        color=text_color,
                         expand=True,
+                    ),
+                    ft.Text(
+                        format_streak_label(item.streak),
+                        size=12,
+                        color=TEXT_SECONDARY,
                     ),
                 ],
                 spacing=10,
@@ -359,14 +368,27 @@ class HabitStatsCards(ft.Container):
         ]
 
     def _build_card(self, card: StatCard) -> ft.Container:
-        """Construir una tarjeta con su título y su valor."""
+        """Construir una tarjeta con su icono, título y valor."""
         return ft.Container(
             content=ft.Column(
                 controls=[
-                    ft.Text(
-                        card.label,
-                        size=12,
-                        color=TEXT_SECONDARY,
+                    ft.Row(
+                        controls=[
+                            ft.Text(
+                                card.label,
+                                size=12,
+                                color=TEXT_SECONDARY,
+                                expand=True,
+                            ),
+                            ft.Icon(
+                                STAT_CARD_ICONS.get(
+                                    card.label, ft.Icons.INSIGHTS
+                                ),
+                                size=16,
+                                color=TEXT_SECONDARY,
+                            ),
+                        ],
+                        vertical_alignment="center",
                     ),
                     ft.Text(
                         str(card.value),
@@ -398,6 +420,7 @@ class ActivityHeatmap(ft.Container):
     rows: list[list[HeatmapDay]] | None = skip_field()
     _body: ft.Column | None = None
     _grid: ft.Column | None = None
+    _weekday_labels: ft.Column | None = None
 
     def init(self):
         self.padding = 16
@@ -430,6 +453,18 @@ class ActivityHeatmap(ft.Container):
             ],
             spacing=4,
         )
+        self._weekday_labels = ft.Column(
+            controls=[
+                ft.Text(
+                    label,
+                    size=11,
+                    color=TEXT_SECONDARY,
+                    height=22,
+                )
+                for label in WEEKDAY_LABELS
+            ],
+            spacing=4,
+        )
         self._body.controls = [
             ft.Text(
                 HEATMAP_TITLE,
@@ -437,7 +472,11 @@ class ActivityHeatmap(ft.Container):
                 weight="bold",
                 color=TEXT_PRIMARY,
             ),
-            self._grid,
+            ft.Row(
+                controls=[self._weekday_labels, self._grid],
+                spacing=8,
+                vertical_alignment="start",
+            ),
             self._build_legend(),
         ]
 
@@ -622,7 +661,7 @@ class EmptyDetailPanel(ft.Container):
                     text_align="center",
                     color=TEXT_PRIMARY,
                 ),
-                ft.Button(
+                ft.FilledButton(
                     content=EMPTY_BUTTON_LABEL,
                     on_click=self._handle_create,
                 ),
@@ -678,7 +717,7 @@ class HabitFormDialog:
 
         self.name_field = ft.TextField(
             label="Nombre del hábito",
-            hint_text="Ej: Estudiar Python 30 minutos",
+            hint_text="Ej: Estudiar Python",
             max_length=MAX_NAME_LENGTH,
             autofocus=True,
             border_radius=8,
@@ -804,7 +843,7 @@ class CreateHabitView(ft.Column):
 
         self.name_field = ft.TextField(
             label="Nombre del hábito",
-            hint_text="Ej: Estudiar Python 30 minutos",
+            hint_text="Ej: Estudiar Python",
             max_length=60,
             border_radius=8,
             expand=True,
@@ -1173,6 +1212,8 @@ def configure_page(page: ft.Page) -> None:
     page.window.height = WINDOW_HEIGHT
     page.window.min_width = WINDOW_MIN_WIDTH
     page.window.min_height = WINDOW_MIN_HEIGHT
+    if APP_ICON_PATH.exists():
+        page.window.icon = str(APP_ICON_PATH)
 
 
 def main(page: ft.Page, db_path: str = "data/habits.db"):
