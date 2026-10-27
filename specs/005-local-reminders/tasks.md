@@ -25,29 +25,29 @@
 
 ## Fase 2: Persistencia de recordatorios (`storage.py`)
 
-- [ ] **Tarea 2.1:** Escribir los tests del esquema y del CRUD
+- [x] **Tarea 2.1:** Escribir los tests del esquema y del CRUD
   - **RF:** RF-1.2, RF-1.3, RF-1.4, RF-1.7, RF-1.8, RF-3.4
   - **Hecho cuando:** Los tests cubren creación de la tabla, alta y actualización, hábito sin
     fila como desactivado, lectura y borrado junto al hábito; la suite muestra los fallos
     esperados.
 
-- [ ] **Tarea 2.2:** Implementar la tabla `reminders` y su CRUD
+- [x] **Tarea 2.2:** Implementar la tabla `reminders` y su CRUD
   - **RF:** RF-1.2, RF-1.3, RF-1.4, RF-1.7, RF-1.8, RF-3.4
   - **Hecho cuando:** `init_db` crea la tabla de forma idempotente, el CRUD persiste la
     configuración y `delete_habit_db` elimina el recordatorio en la misma transacción; los tests
     de la tarea 2.1 pasan.
 
-- [ ] **Tarea 2.3:** Escribir los tests de consulta de vencidos y reclamación
+- [x] **Tarea 2.3:** Escribir los tests de consulta de vencidos y reclamación
   - **RF:** RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9, RFN-7
   - **Hecho cuando:** Los tests cubren filtrado por estado, hora, fecha efectiva, completado y
     aviso previo, además de reclamar y liberar la entrega; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 2.4:** Implementar la consulta de vencidos y la reclamación atómica
+- [x] **Tarea 2.4:** Implementar la consulta de vencidos y la reclamación atómica
   - **RF:** RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9, RFN-7
   - **Hecho cuando:** La consulta devuelve solo recordatorios que deben avisar y la reclamación
     con `last_notified_on` evita duplicados; los tests de la tarea 2.3 pasan.
 
-- [ ] **Tarea 2.5:** Actualizar las guardias de alcance de las specs 002, 003 y 004
+- [x] **Tarea 2.5:** Actualizar las guardias de alcance de las specs 002, 003 y 004
   - **RF:** RF-1.8, RF-2.7, RFN-5
   - **Hecho cuando:** Las guardias reconocen la tabla `reminders` y los conceptos de recordatorio
     como parte de la spec 005, mantienen prohibidos deshacer, selección manual, huecos largos y

@@ -1,11 +1,12 @@
 # spec: 003-edit-delete-habits
+# spec: 005-local-reminders
 """Guardia de alcance de la spec 003 — Tarea 7.3.
 
 Comprueba que la edición y la eliminación no incorporan funciones fuera de
 alcance: deshacer, archivar, borrado masivo, edición de registros diarios,
-historial, importación/exportación, recordatorios ni acciones desde la barra
-lateral. Los criterios funcionales se validan con la suite de widgets y de
-flujos integrados.
+historial, importación/exportación ni acciones desde la barra lateral. Los
+recordatorios y sus notificaciones pertenecen a la spec 005. Los criterios
+funcionales se validan con la suite de widgets y de flujos integrados.
 """
 
 import ast
@@ -48,9 +49,6 @@ FORBIDDEN_UI_TERMS = (
     "auditoría",
     "importar",
     "exportar",
-    "recordatorio",
-    "notificación",
-    "sincronizar",
     "tema oscuro",
     "minutos",
     "sesiones",
@@ -119,7 +117,7 @@ def class_source(source: str, name: str) -> str:
 
 
 def test_database_schema_has_no_undo_archive_or_history_tables():
-    """Fuera de alcance: solo hábitos y registros diarios, sin estado extra."""
+    """Fuera de alcance: sin estado extra, pero se admite `reminders` (spec 005)."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = str(Path(temp_dir) / "scope.db")
         init_db(db_path)
@@ -133,7 +131,7 @@ def test_database_schema_has_no_undo_archive_or_history_tables():
                 )
                 if not row[0].startswith("sqlite_")
             }
-            assert tables == {"habits", "completions"}
+            assert tables == {"habits", "completions", "reminders"}
 
             columns = {
                 table: {

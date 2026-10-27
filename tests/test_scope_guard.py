@@ -1,8 +1,11 @@
 # spec: 002-ui-redesign
+# spec: 005-local-reminders
 """Guardia de alcance de la spec 002 — Tarea 7.5, RF-5.5.
 
 Comprueba que la aplicación no incorpora minutos, sesiones, “Quitar
-registro”, Ajustes ni Progreso. La suite verde se valida ejecutando pytest.
+registro”, Ajustes ni Progreso. La tabla `reminders` y los conceptos de
+recordatorio pertenecen a la spec 005 y están permitidos. La suite verde se
+valida ejecutando pytest.
 """
 
 import ast
@@ -82,7 +85,7 @@ def ui_strings(path: Path) -> list[str]:
 
 
 def test_database_schema_stays_within_scope():
-    """RF-5.5: solo existen hábitos y registros diarios."""
+    """RF-5.5: solo hábitos, registros diarios y recordatorios de la spec 005."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = str(Path(temp_dir) / "scope.db")
         init_db(db_path)
@@ -96,7 +99,7 @@ def test_database_schema_stays_within_scope():
                 )
                 if not row[0].startswith("sqlite_")
             }
-            assert tables == {"habits", "completions"}
+            assert tables == {"habits", "completions", "reminders"}
             assert tables.isdisjoint(FORBIDDEN_TABLES)
 
             for table in tables:

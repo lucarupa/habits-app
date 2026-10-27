@@ -2,13 +2,14 @@
 # spec: 002-ui-redesign
 # spec: 003-edit-delete-habits
 # spec: 004-duplicate-warning-streak-recovery
+# spec: 005-local-reminders
 """Tests para la capa de persistencia SQLite — Tarea 4.1, RFN-3."""
 
 import os
 import sqlite3
 import tempfile
 from contextlib import closing
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -16,7 +17,10 @@ from habits import storage
 from habits.storage import (
     init_db, create_habit_db, get_habit_db,
     mark_completed_db, is_completed_today_db,
-    list_all_habits_db, get_completions_db
+    list_all_habits_db, get_completions_db,
+    delete_habit_db, get_reminder_db, save_reminder_db,
+    list_due_reminders_db, claim_reminder_delivery_db,
+    release_reminder_delivery_db
 )
 
 
@@ -890,3 +894,356 @@ class TestPersistenceIntegration:
         assert "habits" in tables
         assert "completions" in tables
         conn.close()
+
+
+class TestRemindersStorage:
+    """Esquema y CRUD de recordatorios — Tarea 2.1, RF-1.2 a RF-1.8 y RF-3.4."""
+
+    def setup_method(self):
+        """Crear un directorio temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_reminders.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _table_info(self, table: str) -> dict[str, tuple]:
+        """Devolver las columnas de una tabla indexadas por nombre."""
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            return {
+                row[1]: row
+                for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+            }
+
+    def test_init_db_creates_reminders_table(self):
+        """RF-1.8: init_db crea la tabla `reminders` con el esquema del plan."""
+        columns = self._table_info("reminders")
+
+        assert set(columns) == {
+            "habit_id",
+            "enabled",
+            "reminder_time",
+            "effective_from",
+            "last_notified_on",
+        }
+        assert columns["habit_id"][5] == 1
+        assert columns["enabled"][3] == 1
+        assert columns["enabled"][4] == "0"
+        assert columns["effective_from"][3] == 1
+        assert columns["reminder_time"][3] == 0
+        assert columns["last_notified_on"][3] == 0
+
+    def test_init_db_is_idempotent_and_keeps_existing_data(self):
+        """RF-1.8: volver a inicializar no borra hábitos ni recordatorios."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+        save_reminder_db(
+            habit_id, True, "20:00", "2024-10-20", db_path=self.db_path
+        )
+
+        init_db(self.db_path)
+
+        assert get_habit_db(habit_id, db_path=self.db_path) is not None
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+        assert reminder is not None
+        assert reminder.reminder_time == "20:00"
+
+    def test_save_and_get_reminder_db(self):
+        """RF-1.2, RF-1.7: guarda y recupera la configuración activa."""
+        habit_id = create_habit_db(
+            "Estudiar Python", "2024-09-15", db_path=self.db_path
+        )
+
+        save_reminder_db(
+            habit_id, True, "20:00", "2024-10-24", db_path=self.db_path
+        )
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+
+        assert reminder is not None
+        assert reminder.habit_id == habit_id
+        assert reminder.enabled is True
+        assert reminder.reminder_time == "20:00"
+        assert reminder.effective_from == "2024-10-24"
+        assert reminder.last_notified_on is None
+
+    def test_save_reminder_db_updates_the_existing_row(self):
+        """RF-1.4: cambiar la hora actualiza la misma fila sin duplicarla."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+        save_reminder_db(
+            habit_id, True, "20:00", "2024-10-20", db_path=self.db_path
+        )
+
+        save_reminder_db(
+            habit_id, True, "21:30", "2024-10-24", db_path=self.db_path
+        )
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+
+        assert reminder is not None
+        assert reminder.enabled is True
+        assert reminder.reminder_time == "21:30"
+        assert reminder.effective_from == "2024-10-24"
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            count = conn.execute("SELECT COUNT(*) FROM reminders").fetchone()[0]
+        assert count == 1
+
+    def test_disabled_reminder_keeps_its_time(self):
+        """RF-1.5: desactivar conserva la hora pero deja de estar activo."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+        save_reminder_db(
+            habit_id, True, "20:00", "2024-10-20", db_path=self.db_path
+        )
+
+        save_reminder_db(
+            habit_id, False, "20:00", "2024-10-20", db_path=self.db_path
+        )
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+
+        assert reminder is not None
+        assert reminder.enabled is False
+        assert reminder.reminder_time == "20:00"
+
+    def test_reminder_without_row_is_disabled(self):
+        """RF-1.3, RF-1.8: un hábito sin fila equivale a desactivado."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+
+        assert get_reminder_db(habit_id, db_path=self.db_path) is None
+
+    def test_delete_habit_db_removes_its_reminder(self):
+        """RF-3.4: al borrar el hábito desaparece su recordatorio."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+        other_id = create_habit_db(
+            "Python", "2024-09-15", db_path=self.db_path
+        )
+        save_reminder_db(
+            habit_id, True, "20:00", "2024-10-20", db_path=self.db_path
+        )
+        save_reminder_db(
+            other_id, True, "21:00", "2024-10-20", db_path=self.db_path
+        )
+
+        delete_habit_db(habit_id, db_path=self.db_path)
+
+        assert get_reminder_db(habit_id, db_path=self.db_path) is None
+        assert get_reminder_db(other_id, db_path=self.db_path) is not None
+
+    def test_delete_habit_without_reminder_still_works(self):
+        """RF-3.4: borrar un hábito sin configuración no falla."""
+        habit_id = create_habit_db(
+            "Leer", "2024-09-01", db_path=self.db_path
+        )
+
+        delete_habit_db(habit_id, db_path=self.db_path)
+
+        assert get_habit_db(habit_id, db_path=self.db_path) is None
+
+
+class TestReminderDeliveryStorage:
+    """Consulta de vencidos y reclamación de entregas — Tarea 2.3.
+
+    Cubre RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9 y RFN-7.
+    """
+
+    NOW = datetime(2024, 10, 24, 10, 0)
+    TODAY = "2024-10-24"
+
+    def setup_method(self):
+        """Crear un directorio temporal y una base nueva para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_reminders.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _create_habit(
+        self, name: str = "Leer", start_date: str = "2024-09-01"
+    ) -> int:
+        """Crear un hábito y devolver su identificador."""
+        return create_habit_db(name, start_date, db_path=self.db_path)
+
+    def _save_reminder(
+        self,
+        habit_id: int,
+        enabled: bool = True,
+        reminder_time: str | None = "09:00",
+        effective_from: str = "2024-10-24",
+    ) -> None:
+        """Guardar una configuración de recordatorio para el hábito."""
+        save_reminder_db(
+            habit_id,
+            enabled,
+            reminder_time,
+            effective_from,
+            db_path=self.db_path,
+        )
+
+    def _set_last_notified(self, habit_id: int, value: str | None) -> None:
+        """Fijar directamente la fecha del último aviso para preparar el caso."""
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.execute(
+                "UPDATE reminders SET last_notified_on = ? WHERE habit_id = ?",
+                (value, habit_id),
+            )
+            conn.commit()
+
+    def test_list_due_reminders_db_returns_pending_habit(self):
+        """RF-2.1: devuelve el hábito activo cuya hora ya llegó."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id)
+
+        due = list_due_reminders_db(self.NOW, db_path=self.db_path)
+
+        assert len(due) == 1
+        assert due[0].habit_id == habit_id
+        assert due[0].habit_name == "Leer"
+        assert due[0].reminder_time == "09:00"
+
+    def test_list_due_reminders_db_returns_only_pending_habits(self):
+        """RF-2.1, RF-2.4: incluye los pendientes y omite el ya registrado."""
+        pending_id = self._create_habit("Leer")
+        completed_id = self._create_habit("Python", start_date="2024-09-15")
+        other_id = self._create_habit("Meditar", start_date="2024-09-20")
+        for habit_id in (pending_id, completed_id, other_id):
+            self._save_reminder(habit_id)
+        mark_completed_db(completed_id, self.TODAY, db_path=self.db_path)
+
+        due = list_due_reminders_db(self.NOW, db_path=self.db_path)
+
+        assert {item.habit_id for item in due} == {pending_id, other_id}
+        assert {item.habit_name for item in due} == {"Leer", "Meditar"}
+
+    @pytest.mark.parametrize(
+        ("enabled", "reminder_time", "effective_from", "start_date",
+         "last_notified_on", "completed_today"),
+        [
+            (False, "09:00", "2024-10-24", "2024-09-01", None, False),
+            (True, "11:00", "2024-10-24", "2024-09-01", None, False),
+            (True, "09:00", "2024-10-25", "2024-09-01", None, False),
+            (True, "09:00", "2024-10-24", "2024-10-25", None, False),
+            (True, "09:00", "2024-10-24", "2024-09-01", "2024-10-24", False),
+            (True, "09:00", "2024-10-24", "2024-09-01", None, True),
+            (True, None, "2024-10-24", "2024-09-01", None, False),
+        ],
+        ids=[
+            "disabled",
+            "before-time",
+            "future-effective-date",
+            "future-start-date",
+            "already-notified-today",
+            "completed-today",
+            "without-time",
+        ],
+    )
+    def test_list_due_reminders_db_excludes_non_due_habits(
+        self,
+        enabled,
+        reminder_time,
+        effective_from,
+        start_date,
+        last_notified_on,
+        completed_today,
+    ):
+        """RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9: nada fuera de regla vence."""
+        habit_id = self._create_habit("Leer", start_date=start_date)
+        self._save_reminder(
+            habit_id,
+            enabled=enabled,
+            reminder_time=reminder_time,
+            effective_from=effective_from,
+        )
+        if last_notified_on is not None:
+            self._set_last_notified(habit_id, last_notified_on)
+        if completed_today:
+            mark_completed_db(habit_id, self.TODAY, db_path=self.db_path)
+
+        assert list_due_reminders_db(self.NOW, db_path=self.db_path) == []
+
+    def test_list_due_reminders_db_keeps_overdue_reminder_same_day(self):
+        """RF-2.10: una hora pasada sigue vencida durante el mismo día."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id, reminder_time="07:00")
+
+        due = list_due_reminders_db(self.NOW, db_path=self.db_path)
+
+        assert [item.habit_id for item in due] == [habit_id]
+
+    def test_list_due_reminders_db_is_empty_without_reminders(self):
+        """RFN-7: sin recordatorios activos no hay nada que entregar."""
+        self._create_habit("Leer")
+
+        assert list_due_reminders_db(self.NOW, db_path=self.db_path) == []
+
+    def test_claim_and_release_reminder_delivery(self):
+        """RF-2.7, RFN-7: reclamar evita duplicados y liberar permite reintentar."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id)
+
+        assert claim_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        ) is True
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+        assert reminder is not None
+        assert reminder.last_notified_on == self.TODAY
+        assert list_due_reminders_db(self.NOW, db_path=self.db_path) == []
+
+        assert claim_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        ) is False
+
+        release_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        )
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+        assert reminder is not None
+        assert reminder.last_notified_on is None
+        assert len(list_due_reminders_db(self.NOW, db_path=self.db_path)) == 1
+
+    def test_claim_reminder_delivery_db_succeeds_after_previous_day(self):
+        """RF-2.7: el aviso de ayer no impide reclamar el de hoy."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id)
+        self._set_last_notified(habit_id, "2024-10-23")
+
+        assert claim_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        ) is True
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+        assert reminder is not None
+        assert reminder.last_notified_on == self.TODAY
+
+    def test_claim_reminder_delivery_db_returns_false_without_row(self):
+        """RFN-7: reclamar un hábito sin recordatorio no crea una fila."""
+        habit_id = self._create_habit("Leer")
+
+        assert claim_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        ) is False
+        assert get_reminder_db(habit_id, db_path=self.db_path) is None
+
+    def test_release_reminder_delivery_db_keeps_previous_day_notice(self):
+        """RF-2.7: liberar solo suelta la reclamación del día actual."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id)
+        self._set_last_notified(habit_id, "2024-10-23")
+
+        release_reminder_delivery_db(
+            habit_id, self.TODAY, db_path=self.db_path
+        )
+
+        reminder = get_reminder_db(habit_id, db_path=self.db_path)
+        assert reminder is not None
+        assert reminder.last_notified_on == "2024-10-23"

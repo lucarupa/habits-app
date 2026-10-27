@@ -1,10 +1,12 @@
 # spec: 004-duplicate-warning-streak-recovery
+# spec: 005-local-reminders
 """Guardia de alcance de la spec 004 — Tarea 6.3.
 
 Comprueba que la recuperación no incorpora selección manual de días, deshacer,
-notificaciones del sistema, recordatorios ni recuperación de huecos largos. Los
-criterios funcionales se validan con la suite de dominio, widgets y flujos
-integrados.
+recuperación de huecos largos ni tablas ajenas. La tabla `reminders` y los
+conceptos de recordatorio y notificación pertenecen a la spec 005 y están
+permitidos. Los criterios funcionales se validan con la suite de dominio,
+widgets y flujos integrados.
 """
 
 import ast
@@ -23,7 +25,6 @@ FORBIDDEN_TABLES = {
     "recoveries",
     "recovery_history",
     "notifications",
-    "reminders",
     "undo_history",
     "settings",
 }
@@ -43,15 +44,9 @@ FORBIDDEN_UI_TERMS = (
     "huecos anteriores",
     "hueco largo",
     "deshacer",
-    "notificación del sistema",
-    "notificaciones del sistema",
-    "recordatorio",
 )
 FORBIDDEN_FEATURE_NAMES = (
     "undo",
-    "notification",
-    "reminder",
-    "notify",
     "archive",
 )
 UI_CONTROLS = {
@@ -117,7 +112,7 @@ def class_source(source: str, name: str) -> str:
 
 
 def test_scope_guard_allows_recovered_column():
-    """RF-2.15: el esquema solo añade `recovered` a los registros diarios."""
+    """RF-2.15: el esquema añade `recovered` y la tabla de la spec 005."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = str(Path(temp_dir) / "scope.db")
         init_db(db_path)
@@ -131,7 +126,7 @@ def test_scope_guard_allows_recovered_column():
                 )
                 if not row[0].startswith("sqlite_")
             }
-            assert tables == {"habits", "completions"}
+            assert tables == {"habits", "completions", "reminders"}
             assert tables.isdisjoint(FORBIDDEN_TABLES)
 
             columns = {
@@ -176,8 +171,8 @@ def test_scope_guard_rejects_manual_gap_selection():
     assert "Calendar" not in dialog
 
 
-def test_scope_guard_rejects_undo_notifications_and_long_gaps():
-    """Fuera de alcance: sin deshacer, avisos del sistema ni huecos largos."""
+def test_scope_guard_rejects_undo_and_archive_features():
+    """Fuera de alcance: sin deshacer ni archivar; los avisos son de la spec 005."""
     offenders: list[str] = []
 
     for path in sorted(HABITS_DIR.glob("*.py")):
