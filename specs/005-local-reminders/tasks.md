@@ -2,23 +2,23 @@
 
 ## Fase 1: Lógica pura de recordatorios (`reminders.py`)
 
-- [ ] **Tarea 1.1:** Escribir los tests de validación, etiqueta, fecha efectiva y texto
+- [x] **Tarea 1.1:** Escribir los tests de validación, etiqueta, fecha efectiva y texto
   - **RF:** RF-1.1, RF-1.2, RF-1.6, RF-2.2, RF-3.1, RF-3.6
   - **Hecho cuando:** Los tests cubren horas válidas e inválidas, la etiqueta del estado, el
     cálculo de hoy/mañana y el texto exacto de la notificación; la suite muestra los fallos
     esperados.
 
-- [ ] **Tarea 1.2:** Implementar `habits/reminders.py`
+- [x] **Tarea 1.2:** Implementar `habits/reminders.py`
   - **RF:** RF-1.1, RF-1.2, RF-1.6, RF-2.2, RF-3.1, RF-3.6
   - **Hecho cuando:** Las funciones puras validan HH:MM, generan la etiqueta y el texto, y
     calculan la fecha efectiva; los tests de la tarea 1.1 pasan.
 
-- [ ] **Tarea 1.3:** Escribir los tests de vencimiento del recordatorio
+- [x] **Tarea 1.3:** Escribir los tests de vencimiento del recordatorio
   - **RF:** RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9, RF-2.10
   - **Hecho cuando:** Los tests cubren activo/inactivo, hora alcanzada, fecha efectiva, hábito
     completado, aviso ya enviado y fecha de inicio; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 1.4:** Implementar la evaluación de vencimiento
+- [x] **Tarea 1.4:** Implementar la evaluación de vencimiento
   - **RF:** RF-2.1, RF-2.4, RF-2.5, RF-2.7, RF-2.9, RF-2.10
   - **Hecho cuando:** La función pura decide si un recordatorio vence sin acceder a SQLite ni a
     Flet; los tests de la tarea 1.3 pasan.
