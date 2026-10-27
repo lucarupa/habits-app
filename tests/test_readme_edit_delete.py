@@ -60,5 +60,5 @@ class TestReadmeEditDelete:
         readme = read_readme()
 
         assert "221 pruebas puras" in readme
-        assert "69 con Flet" in readme
-        assert "290 en `.venv`" in readme
+        assert "86 con Flet" in readme
+        assert "307 en `.venv`" in readme

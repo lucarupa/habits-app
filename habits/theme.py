@@ -1,4 +1,5 @@
 # spec: 002-ui-redesign
+# spec: 004-duplicate-warning-streak-recovery
 """Tema visual y dimensiones de ventana de la aplicación.
 
 Constantes puras, sin dependencia de Flet, para poder testearlas (Tarea 3.5).
@@ -15,6 +16,7 @@ TEXT_SECONDARY = "#777777"
 
 HEATMAP_EMPTY = "#e8e1d4"
 HEATMAP_FUTURE = "#f2f2f2"
+HEATMAP_RECOVERED = "#f0a500"
 HEATMAP_TODAY_BORDER = "#1b5e20"
 
 SIDEBAR_WIDTH = 280

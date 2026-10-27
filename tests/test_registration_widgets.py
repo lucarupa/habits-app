@@ -40,6 +40,9 @@ def collect_texts(control) -> list[str]:
         value = getattr(control, attribute, None)
         if isinstance(value, str):
             texts.append(value)
+    title = getattr(control, "title", None)
+    if title is not None:
+        texts.extend(collect_texts(title))
     content = getattr(control, "content", None)
     if isinstance(content, str):
         texts.append(content)
@@ -187,6 +190,177 @@ class TestTodayRegistrationPanel:
         panel.refresh()
 
         assert next_day.strftime("%d/%m/%Y") in collect_texts(panel)
+
+
+class TestRecoverStreakPanel:
+    """Acción “Recuperar racha” del panel — Tarea 5.1.
+
+    RF-2.1, RF-2.2, RF-2.3 y RF-2.4: la acción aparece solo con un hueco
+    recuperable de uno o dos días y delega el clic en la vista principal.
+    """
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        self.habit_id = create_habit_db(
+            "Leer", "2024-10-01", icon="book", db_path=self.db_path
+        )
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _state(self, completed_offsets: tuple[int, ...]) -> AppState:
+        for offset in completed_offsets:
+            mark_completed_db(
+                self.habit_id,
+                (TODAY - timedelta(days=offset)).isoformat(),
+                db_path=self.db_path,
+            )
+        return load_app_state(self.db_path, today=TODAY)
+
+    def test_panel_shows_recover_button_for_one_day_gap(self):
+        """RF-2.1: un hueco de un día ofrece “Recuperar racha”."""
+        panel = TodayRegistrationPanel(state=self._state((2, 0)))
+
+        assert "Recuperar racha" in collect_texts(panel)
+        assert panel._recover_button.visible is True
+
+    def test_panel_shows_recover_button_for_two_day_gap(self):
+        """RF-2.1: un hueco de dos días ofrece “Recuperar racha”."""
+        panel = TodayRegistrationPanel(state=self._state((3, 0)))
+
+        assert "Recuperar racha" in collect_texts(panel)
+        assert panel._recover_button.visible is True
+
+    def test_panel_hides_recover_button_for_three_day_gap(self):
+        """RF-2.2: un hueco de tres días no ofrece la acción."""
+        panel = TodayRegistrationPanel(state=self._state((4, 0)))
+
+        assert "Recuperar racha" not in collect_texts(panel)
+        assert panel._recover_button.visible is False
+
+    def test_panel_hides_recover_button_without_records(self):
+        """RF-2.3: un hábito sin registros no ofrece la acción."""
+        panel = TodayRegistrationPanel(state=self._state(()))
+
+        assert "Recuperar racha" not in collect_texts(panel)
+        assert panel._recover_button.visible is False
+
+    def test_recover_button_notifies_main(self):
+        """RF-2.4: el panel delega el clic en su callback."""
+        calls: list[bool] = []
+        panel = TodayRegistrationPanel(state=self._state((2, 0)))
+        panel.on_recover = lambda: calls.append(True)
+
+        panel._recover_button.on_click(None)
+
+        assert calls == [True]
+
+
+class TestStreakRecoveryDialog:
+    """Diálogo de confirmación de recuperación — Tarea 5.3.
+
+    RF-2.4 a RF-2.8 y RF-2.19: muestra el hábito y los días, advierte sobre
+    las estadísticas, permite cancelar sin cambios y solo notifica al
+    confirmar.
+    """
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        create_habit_db(
+            "Leer", "2024-09-01", icon="book", db_path=self.db_path
+        )
+        self.state = load_app_state(self.db_path, today=TODAY)
+        self.habit = self.state.selected.habit
+        self.page = FakePage()
+        self.dates = (
+            TODAY - timedelta(days=2),
+            TODAY - timedelta(days=1),
+        )
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_recovery_dialog_shows_name_and_day_count(self):
+        """RF-2.4: el diálogo muestra el hábito y cuántos días se recuperan."""
+        from habits.app import StreakRecoveryDialog
+
+        dialog = StreakRecoveryDialog(self.page)
+
+        dialog.open(self.habit, self.dates)
+
+        assert dialog.dialog.open is True
+        assert dialog.dialog.modal is True
+        assert self.page.open_dialogs == [dialog.dialog]
+        texts = collect_texts(dialog.dialog)
+        assert self.habit.name in texts
+        assert any("2 días" in text for text in texts)
+        assert any("Recuperar racha" in text for text in texts)
+
+    def test_recovery_dialog_warns_about_statistics(self):
+        """RF-2.5: advierte de que cuentan para la racha, no para los días."""
+        from habits.app import StreakRecoveryDialog
+
+        dialog = StreakRecoveryDialog(self.page)
+
+        dialog.open(self.habit, self.dates)
+
+        texts = collect_texts(dialog.dialog)
+        assert any("recuperados" in text for text in texts)
+        assert any("racha" in text for text in texts)
+        assert any("Días registrados" in text for text in texts)
+
+    def test_recovery_dialog_offers_cancel_and_recover_actions(self):
+        """RF-2.6: el diálogo ofrece “Cancelar” y “Recuperar”."""
+        from habits.app import StreakRecoveryDialog
+
+        dialog = StreakRecoveryDialog(self.page)
+        dialog.open(self.habit, self.dates)
+
+        labels = [action.content for action in dialog.dialog.actions]
+
+        assert labels == ["Cancelar", "Recuperar"]
+
+    def test_recovery_dialog_cancel_keeps_state(self):
+        """RF-2.7: cancelar cierra sin notificar ni marcar días."""
+        from habits.app import StreakRecoveryDialog
+
+        confirmed: list[tuple] = []
+        dialog = StreakRecoveryDialog(
+            self.page,
+            on_confirm=lambda habit, dates: confirmed.append((habit, dates)),
+        )
+        dialog.open(self.habit, self.dates)
+
+        dialog.close()
+
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []
+        assert confirmed == []
+
+    def test_recovery_dialog_confirm_notifies_habit_and_dates(self):
+        """RF-2.8: confirmar notifica el hábito y las fechas del hueco."""
+        from habits.app import StreakRecoveryDialog
+
+        confirmed: list[tuple] = []
+        dialog = StreakRecoveryDialog(
+            self.page,
+            on_confirm=lambda habit, dates: confirmed.append((habit, dates)),
+        )
+        dialog.open(self.habit, self.dates)
+
+        assert confirmed == []
+
+        dialog.confirm()
+
+        assert confirmed == [(self.habit, self.dates)]
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []
 
 
 class TestRegistrationFlow:

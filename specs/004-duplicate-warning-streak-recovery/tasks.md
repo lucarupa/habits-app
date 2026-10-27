@@ -89,47 +89,47 @@
 
 ## Fase 5: Recuperación en la interfaz (`app.py`)
 
-- [ ] **Tarea 5.1:** Escribir los tests de la acción “Recuperar racha” en el panel
+- [x] **Tarea 5.1:** Escribir los tests de la acción “Recuperar racha” en el panel
   - **RF:** RF-2.1, RF-2.2, RF-2.3, RF-2.4
   - **Hecho cuando:** Los tests verifican que la acción aparece con huecos de uno y dos días, se
     oculta con tres días o sin registros, y notifica al callback de `main`; la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 5.2:** Implementar el botón “Recuperar racha” en `TodayRegistrationPanel`
+- [x] **Tarea 5.2:** Implementar el botón “Recuperar racha” en `TodayRegistrationPanel`
   - **RF:** RF-2.1, RF-2.2, RF-2.3, RF-2.4
   - **Hecho cuando:** El panel consulta el hueco del estado, muestra u oculta la acción y delega
     el clic en `on_recover`; los tests de la tarea 5.1 pasan.
 
-- [ ] **Tarea 5.3:** Escribir los tests del diálogo de recuperación
+- [x] **Tarea 5.3:** Escribir los tests del diálogo de recuperación
   - **RF:** RF-2.4 a RF-2.8, RF-2.19
   - **Hecho cuando:** Los tests cubren el título, el nombre del hábito, el número de días, la
     advertencia sobre estadísticas, “Cancelar” sin cambios y “Recuperar” notificando las fechas;
     la suite muestra los fallos esperados.
 
-- [ ] **Tarea 5.4:** Implementar `StreakRecoveryDialog`
+- [x] **Tarea 5.4:** Implementar `StreakRecoveryDialog`
   - **RF:** RF-2.4 a RF-2.8, RF-2.19
   - **Hecho cuando:** El diálogo modal se abre con los datos del hábito, cierra sin notificar al
     cancelar, notifica el hábito y las fechas al confirmar y los tests de la tarea 5.3 pasan.
 
-- [ ] **Tarea 5.5:** Escribir los tests del heatmap con estado recuperado
+- [x] **Tarea 5.5:** Escribir los tests del heatmap con estado recuperado
   - **RF:** RF-2.11
   - **Hecho cuando:** Los tests verifican la leyenda “Recuperado”, el color propio de la celda y
     el tooltip “Recuperado”; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 5.6:** Implementar el color y la leyenda del heatmap
+- [x] **Tarea 5.6:** Implementar el color y la leyenda del heatmap
   - **RF:** RF-2.11
   - **Hecho cuando:** `theme.py` define el color de recuperado, `ActivityHeatmap` lo usa con
     prioridad sobre el completado, añade la leyenda y el tooltip, y los tests de la tarea 5.5
     pasan.
 
-- [ ] **Tarea 5.7:** Escribir los tests del flujo integrado de recuperación
+- [x] **Tarea 5.7:** Escribir los tests del flujo integrado de recuperación
   - **RF:** RF-2.7 a RF-2.16
   - **Hecho cuando:** Los tests montan `main`, confirman una recuperación, verifican la base de
     datos, la racha, “Días registrados”, el heatmap, la desaparición de la acción, la
     persistencia tras recargar, la cancelación y el fallo de persistencia; la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 5.8:** Conectar la recuperación en `main`
+- [x] **Tarea 5.8:** Conectar la recuperación en `main`
   - **RF:** RF-2.7 a RF-2.16
   - **Hecho cuando:** `main` abre el diálogo con el hueco calculado, llama a
     `mark_recovered_days_db`, recarga conservando el hábito, muestra un aviso ante error y los

@@ -11,7 +11,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Registrar hoy** desde el panel de detalle con la fecha actual y confirmación inmediata; los duplicados se rechazan y muestran un aviso emergente con el nombre del hábito.
 - **Listar hábitos** ordenados por racha de días consecutivos descendente, con desempate alfabético.
 - **Ver estadísticas** del hábito seleccionado: racha actual, mejor racha y días registrados.
-- **Heatmap de actividad** de las últimas 5 semanas, con días completados, no completados y futuros.
+- **Heatmap de actividad** de las últimas 5 semanas, con días completados, recuperados, no completados y futuros.
 - **Cálculo de racha estricta**: la racha cuenta hacia atrás desde hoy; si el último día no es hoy, la racha es cero.
 
 ## Stack tecnológico
@@ -19,16 +19,17 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 221 pruebas puras + 69 con Flet (290 en `.venv`)
+- **pytest** — 221 pruebas puras + 86 con Flet (307 en `.venv`)
 
 ## Estado de implementación
 
 Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
 
-Las fases 1 a 4 (detección de huecos recuperables, estadísticas con días recuperados,
-persistencia de `recovered`, carga del estado y aviso de registro duplicado en `core.py`,
-`storage.py`, `app_state.py`, `registration.py` y `app.py`) están implementadas. Las fases 5 y 6
-siguen pendientes; el detalle está en
+Las fases 1 a 5 (detección de huecos recuperables, estadísticas con días recuperados,
+persistencia de `recovered`, carga del estado, aviso de registro duplicado, panel y diálogo de
+recuperación, heatmap con estado propio y conexión en `main` de `core.py`, `storage.py`,
+`app_state.py`, `registration.py`, `theme.py` y `app.py`) están implementadas. La fase 6 sigue
+pendiente; el detalle está en
 `specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
@@ -171,7 +172,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 221 pruebas puras + 69 con Flet (290 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 221 pruebas puras + 86 con Flet (307 en `.venv`).
 
 ## Iconos
 
@@ -196,7 +197,7 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
 
 - `StatCard` — modelo puro con el título y el valor de cada tarjeta.
 - `HabitStatsCards` — muestra “Racha actual”, “Mejor racha” y “Días registrados”; sin registros, las tres valen 0.
-- `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados y la leyenda “No completado / Completado”.
+- `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados, los días recuperados en ámbar y la leyenda “No completado / Completado / Recuperado”.
 - `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap, panel de registro y estado vacío. Al registrar el día actual, todas las zonas se actualizan sin reiniciar la aplicación.
 - Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `core.py` y `app_state.py` nunca reciben atributos internos de control.
 
@@ -207,8 +208,9 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
   - `is_registered_today(habit_id, today, db_path)` — consulta si ya existe el registro del día.
   - `register_today(habit_id, today, db_path)` — persiste el completado de hoy y devuelve “✅ Registro guardado”; si ya existía, devuelve “Ya registrado hoy” sin crear un duplicado.
   - `duplicate_warning(habit_name)` — construye el texto “⚠️ «nombre» ya está registrado hoy.” para el aviso emergente.
-- `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy”.
-- `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Si el día ya estaba registrado, muestra un `SnackBar` no bloqueante con el nombre del hábito y no crea filas adicionales. Los datos permanecen al reiniciar la aplicación.
+- `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy” y, si el hueco más reciente es de uno o dos días, ofrece “Recuperar racha”.
+- `StreakRecoveryDialog` — diálogo modal que muestra el hábito y los días que se recuperarán, advierte de que cuentan para la racha pero no para “Días registrados”, permite cancelar sin cambios y solo notifica al confirmar.
+- `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Si el día ya estaba registrado, muestra un `SnackBar` no bloqueante con el nombre del hábito y no crea filas adicionales. Al pulsar “Recuperar racha” abre el diálogo con el hueco calculado; al confirmar, `mark_recovered_days_db` guarda los días de forma transaccional, conserva el hábito seleccionado y refresca racha, “Días registrados” y heatmap. Si la persistencia falla, muestra un aviso y no recarga la vista. Los datos permanecen al reiniciar la aplicación.
 
 ## Requisitos
 
@@ -349,8 +351,9 @@ tests/
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
 ├── test_edit_delete_flow.py # Tests del flujo integrado de edición y borrado (7 tests, requiere .venv)
-├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (20 tests, requiere .venv)
-├── test_registration_widgets.py # Tests del panel, flujo y aviso de duplicado (11 tests, requiere .venv)
+├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (22 tests, requiere .venv)
+├── test_registration_widgets.py # Tests del panel, aviso de duplicado y diálogo de recuperación (21 tests, requiere .venv)
+├── test_recovery_flow.py # Tests del flujo integrado de recuperación (5 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 scripts/
 ├── prepare_macos_bundle.py # Prepara el cliente de Flet con el icono en macOS

@@ -24,6 +24,7 @@ from habits.app import (
 from habits.app_state import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
+    HEATMAP_RECOVERED_LABEL,
     HEATMAP_TITLE,
     STAT_BEST_STREAK_LABEL,
     STAT_CURRENT_STREAK_LABEL,
@@ -36,8 +37,14 @@ from habits.storage import (
     get_habit_db,
     init_db,
     mark_completed_db,
+    mark_recovered_days_db,
 )
-from habits.theme import ACCENT_GREEN, HEATMAP_EMPTY, HEATMAP_FUTURE
+from habits.theme import (
+    ACCENT_GREEN,
+    HEATMAP_EMPTY,
+    HEATMAP_FUTURE,
+    HEATMAP_RECOVERED,
+)
 
 TODAY = date(2024, 10, 24)
 
@@ -185,12 +192,22 @@ class TestActivityHeatmap:
         if os.path.exists(self.db_path):
             os.remove(self.db_path)
 
-    def _load_state(self, completed_days: tuple[date, ...] = ()) -> AppState:
+    def _load_state(
+        self,
+        completed_days: tuple[date, ...] = (),
+        recovered_days: tuple[date, ...] = (),
+    ) -> AppState:
         habit_id = create_habit_db(
             "Leer", "2024-09-01", icon="book", db_path=self.db_path
         )
         for day in completed_days:
             mark_completed_db(habit_id, day.isoformat(), db_path=self.db_path)
+        if recovered_days:
+            mark_recovered_days_db(
+                habit_id,
+                [day.isoformat() for day in recovered_days],
+                db_path=self.db_path,
+            )
         return load_app_state(self.db_path, today=TODAY)
 
     def _cell_control(self, heatmap: ActivityHeatmap, day: date):
@@ -234,6 +251,40 @@ class TestActivityHeatmap:
         assert HEATMAP_TITLE in texts
         assert HEATMAP_NOT_COMPLETED_LABEL in texts
         assert HEATMAP_COMPLETED_LABEL in texts
+
+    def test_heatmap_legend_includes_recovered(self):
+        """RF-2.11: la leyenda del heatmap distingue los días recuperados."""
+        state = self._load_state(
+            completed_days=(TODAY,),
+            recovered_days=(TODAY - timedelta(days=1),),
+        )
+        heatmap = ActivityHeatmap(state=state)
+
+        assert HEATMAP_RECOVERED_LABEL in collect_texts(heatmap)
+
+    def test_recovered_cell_has_own_color_and_tooltip(self):
+        """RF-2.11: la celda recuperada se distingue del resto de estados."""
+        recovered_day = TODAY - timedelta(days=1)
+        state = self._load_state(
+            completed_days=(TODAY, TODAY - timedelta(days=2)),
+            recovered_days=(recovered_day,),
+        )
+        heatmap = ActivityHeatmap(state=state)
+
+        recovered_cell = self._cell_control(heatmap, recovered_day)
+        completed_cell = self._cell_control(
+            heatmap, TODAY - timedelta(days=2)
+        )
+
+        assert recovered_cell.bgcolor == HEATMAP_RECOVERED
+        assert recovered_cell.bgcolor not in (
+            ACCENT_GREEN,
+            HEATMAP_EMPTY,
+            HEATMAP_FUTURE,
+        )
+        assert recovered_cell.bgcolor != completed_cell.bgcolor
+        assert recovered_cell.border is None
+        assert HEATMAP_RECOVERED_LABEL in recovered_cell.tooltip
 
     def test_distinguishes_completed_empty_today_and_future(self):
         """RF-4.3, RF-4.4: Estados visuales de las celdas."""

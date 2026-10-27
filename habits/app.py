@@ -28,6 +28,7 @@ from habits.app_state import (
     EMPTY_TITLE,
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
+    HEATMAP_RECOVERED_LABEL,
     HEATMAP_TITLE,
     STAT_BEST_STREAK_LABEL,
     STAT_CURRENT_STREAK_LABEL,
@@ -60,6 +61,7 @@ from habits.theme import (
     BACKGROUND,
     HEATMAP_EMPTY,
     HEATMAP_FUTURE,
+    HEATMAP_RECOVERED,
     HEATMAP_TODAY_BORDER,
     SELECTED_BG,
     SIDEBAR_BG,
@@ -79,6 +81,7 @@ from habits.storage import (
     list_all_habits_db,
     get_completions_db,
     mark_completed_db,
+    mark_recovered_days_db,
     is_completed_today_db,
 )
 
@@ -101,6 +104,15 @@ STAT_CARD_ICONS = {
 }
 
 WEEKDAY_LABELS = ("L", "M", "X", "J", "V", "S", "D")
+
+RECOVER_STREAK_BUTTON_LABEL = "Recuperar racha"
+STREAK_RECOVERY_DIALOG_TITLE = "Recuperar racha"
+STREAK_RECOVERY_CANCEL_LABEL = "Cancelar"
+STREAK_RECOVERY_CONFIRM_LABEL = "Recuperar"
+STREAK_RECOVERY_WARNING = (
+    "Los días quedarán marcados como recuperados: contarán para la racha, "
+    "pero no para «Días registrados»."
+)
 
 APP_ICON_PATH = Path(__file__).resolve().parent.parent / "img" / "icon.ico"
 
@@ -451,8 +463,9 @@ class ActivityHeatmap(ft.Container):
 
     Tarea 5.2, RF-4.1 a RF-4.6. Pinta una cuadrícula de 7 filas de lunes a
     domingo por 5 columnas de semanas. Los días completados usan el acento
-    verde, hoy lleva borde destacado y los días futuros se ven como no
-    disponibles. Incluye la leyenda “No completado / Completado”.
+    verde, los recuperados un ámbar propio (RF-2.11), hoy lleva borde
+    destacado y los días futuros se ven como no disponibles. Incluye la
+    leyenda “No completado / Completado / Recuperado”.
     """
 
     state: AppState | None = skip_field()
@@ -523,6 +536,8 @@ class ActivityHeatmap(ft.Container):
         """Construir una celda con el color y el borde que le corresponden."""
         if cell.is_future:
             bgcolor = HEATMAP_FUTURE
+        elif cell.recovered:
+            bgcolor = HEATMAP_RECOVERED
         elif cell.completed:
             bgcolor = ACCENT_GREEN
         else:
@@ -547,6 +562,8 @@ class ActivityHeatmap(ft.Container):
         """Describir la fecha y el estado de una celda."""
         if cell.is_future:
             status = HEATMAP_NOT_COMPLETED_LABEL
+        elif cell.recovered:
+            status = HEATMAP_RECOVERED_LABEL
         elif cell.completed:
             status = HEATMAP_COMPLETED_LABEL
         else:
@@ -554,13 +571,16 @@ class ActivityHeatmap(ft.Container):
         return f"{format_date_label(cell.date)} · {status}"
 
     def _build_legend(self) -> ft.Row:
-        """Construir la leyenda “No completado / Completado”."""
+        """Construir la leyenda “No completado / Completado / Recuperado”."""
         return ft.Row(
             controls=[
                 self._legend_item(
                     HEATMAP_NOT_COMPLETED_LABEL, HEATMAP_EMPTY
                 ),
                 self._legend_item(HEATMAP_COMPLETED_LABEL, ACCENT_GREEN),
+                self._legend_item(
+                    HEATMAP_RECOVERED_LABEL, HEATMAP_RECOVERED
+                ),
             ],
             spacing=16,
         )
@@ -589,14 +609,17 @@ class TodayRegistrationPanel(ft.Container):
     Tarea 6.1, RF-5.1, RF-5.2, RF-5.5 y RF-5.6. Muestra la fecha actual en
     dd/mm/aaaa y un botón “Guardar”; no incluye selector de fecha, minutos ni
     “Quitar registro”. Si el hábito ya está completado hoy muestra el mensaje
-    “Ya registrado hoy” (RF-5.4).
+    “Ya registrado hoy” (RF-5.4). También ofrece “Recuperar racha” cuando el
+    hueco más reciente es de uno o dos días (RF-2.1 a RF-2.4).
     """
 
     state: AppState | None = skip_field()
     on_save: Callable[[], None] | None = None
+    on_recover: Callable[[], None] | None = None
     message: str = ""
     _date_text: ft.Text | None = None
     _save_button: ft.Button | None = None
+    _recover_button: ft.Button | None = None
     _message_text: ft.Text | None = None
     _body: ft.Column | None = None
 
@@ -608,6 +631,11 @@ class TodayRegistrationPanel(ft.Container):
         self._save_button = ft.Button(
             content=REGISTRATION_BUTTON_LABEL,
             on_click=self._handle_save,
+        )
+        self._recover_button = ft.Button(
+            content="",
+            on_click=self._handle_recover,
+            visible=False,
         )
         self._message_text = ft.Text(
             value="",
@@ -637,6 +665,7 @@ class TodayRegistrationPanel(ft.Container):
                     vertical_alignment="center",
                 ),
                 self._message_text,
+                self._recover_button,
             ],
             spacing=8,
         )
@@ -644,7 +673,7 @@ class TodayRegistrationPanel(ft.Container):
         self.refresh()
 
     def refresh(self):
-        """Actualizar fecha, botón y mensaje desde el estado actual."""
+        """Actualizar fecha, botones y mensaje desde el estado actual."""
         if self._body is None:
             return
 
@@ -654,6 +683,8 @@ class TodayRegistrationPanel(ft.Container):
             self.message = ""
             self._message_text.value = ""
             self._message_text.visible = False
+            self._recover_button.content = ""
+            self._recover_button.visible = False
             return
 
         self._date_text.value = format_date_label(self.state.today)
@@ -665,10 +696,21 @@ class TodayRegistrationPanel(ft.Container):
         self._message_text.value = self.message
         self._message_text.visible = bool(self.message)
 
+        can_recover = self.state.recoverable_gap is not None
+        self._recover_button.content = (
+            RECOVER_STREAK_BUTTON_LABEL if can_recover else ""
+        )
+        self._recover_button.visible = can_recover
+
     def _handle_save(self, event):
         """Delegar el guardado en la vista principal (RF-5.3)."""
         if self.on_save is not None:
             self.on_save()
+
+    def _handle_recover(self, event):
+        """Delegar la recuperación de racha en la vista principal (RF-2.4)."""
+        if self.on_recover is not None:
+            self.on_recover()
 
 
 @ft.control
@@ -1049,6 +1091,110 @@ class DeleteHabitDialog:
         self.close()
         if self.on_confirm is not None:
             self.on_confirm(habit.id)
+
+
+class StreakRecoveryDialog:
+    """Diálogo modal para confirmar la recuperación de una racha.
+
+    Tarea 5.4, RF-2.4 a RF-2.8 y RF-2.19. Muestra el hábito y cuántos días se
+    recuperarán, advierte de que contarán para la racha pero no para “Días
+    registrados”, y solo notifica el hábito y las fechas al confirmar. No
+    accede a datos: la persistencia queda en `main` (Constitución, principio 3).
+    """
+
+    def __init__(
+        self,
+        page: ft.Page,
+        on_confirm: (
+            Callable[[Habit, tuple[date, ...]], None] | None
+        ) = None,
+    ) -> None:
+        """Construir el diálogo de confirmación.
+
+        Args:
+            page: Página Flet sobre la que se muestra el diálogo.
+            on_confirm: Callback invocado con el hábito y las fechas del hueco.
+        """
+        self.page = page
+        self.on_confirm = on_confirm
+        self.habit: Habit | None = None
+        self.dates: tuple[date, ...] = ()
+
+        self.name_text = ft.Text(
+            value="",
+            size=16,
+            weight="bold",
+            color=TEXT_PRIMARY,
+        )
+        self.detail_text = ft.Text(
+            value="",
+            size=14,
+            color=TEXT_PRIMARY,
+        )
+        self.warning_text = ft.Text(
+            value=STREAK_RECOVERY_WARNING,
+            size=14,
+            color=TEXT_SECONDARY,
+        )
+        self.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(
+                STREAK_RECOVERY_DIALOG_TITLE,
+                size=20,
+                weight="bold",
+            ),
+            content=ft.Column(
+                controls=[
+                    self.name_text,
+                    self.detail_text,
+                    self.warning_text,
+                ],
+                spacing=12,
+                tight=True,
+                width=420,
+            ),
+            actions=[
+                ft.TextButton(
+                    content=STREAK_RECOVERY_CANCEL_LABEL,
+                    on_click=self.close,
+                ),
+                ft.Button(
+                    content=STREAK_RECOVERY_CONFIRM_LABEL,
+                    icon=ft.Icons.AUTORENEW,
+                    on_click=self.confirm,
+                ),
+            ],
+            actions_alignment="end",
+        )
+
+    def open(self, habit: Habit, dates: tuple[date, ...]) -> None:
+        """Abrir el diálogo con el hábito y las fechas a recuperar (RF-2.4)."""
+        self.habit = habit
+        self.dates = tuple(dates)
+        self.name_text.value = habit.name
+        day_count = len(self.dates)
+        self.detail_text.value = (
+            f"Se recuperará {day_count} día del hábito seleccionado."
+            if day_count == 1
+            else f"Se recuperarán {day_count} días del hábito seleccionado."
+        )
+        self.page.show_dialog(self.dialog)
+
+    def close(self, event=None) -> None:
+        """Cerrar el diálogo sin recuperar nada (RF-2.7)."""
+        self.habit = None
+        self.dates = ()
+        self.page.pop_dialog()
+
+    def confirm(self, event=None) -> None:
+        """Cerrar el diálogo y notificar la recuperación (RF-2.8)."""
+        habit = self.habit
+        dates = self.dates
+        if habit is None or not dates:
+            return
+        self.close()
+        if self.on_confirm is not None:
+            self.on_confirm(habit, dates)
 
 
 @ft.control
@@ -1450,7 +1596,8 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
     con confirmación, y muestra las estadísticas, el heatmap y el panel
     “Registrar hoy” del hábito seleccionado. Al registrar el día actual, todas
     las zonas se actualizan sin reiniciar la aplicación y los duplicados se
-    rechazan.
+    rechazan. La recuperación de rachas abre un diálogo de confirmación y
+    persiste los días recuperados antes de refrescar la vista.
 
     Args:
         page: Página Flet proporcionada por `ft.run`.
@@ -1564,6 +1711,31 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
 
         refresh_views()
 
+    def on_streak_recovered(habit: Habit, dates: tuple[date, ...]) -> None:
+        """Persistir los días recuperados y recargar la vista.
+
+        RF-2.8, RF-2.15 y RF-2.16: la escritura es transaccional en
+        `mark_recovered_days_db`; si falla, no se recarga la vista y se avisa
+        al usuario conservando el estado anterior.
+        """
+        try:
+            mark_recovered_days_db(
+                habit.id,
+                [day.isoformat() for day in dates],
+                db_path=db_path,
+            )
+        except Exception as exc:
+            page.show_dialog(
+                ft.SnackBar(
+                    content=ft.Text(
+                        f"⚠️ No se pudo recuperar la racha: {exc}"
+                    )
+                )
+            )
+            return
+
+        refresh_views(selected_id=habit.id)
+
     form_dialog = HabitFormDialog(
         page,
         on_saved=on_habit_created,
@@ -1571,6 +1743,9 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         db_path=db_path,
     )
     delete_dialog = DeleteHabitDialog(page, on_confirm=on_habit_deleted)
+    recovery_dialog = StreakRecoveryDialog(
+        page, on_confirm=on_streak_recovered
+    )
 
     def find_habit(habit_id: int) -> Habit | None:
         """Buscar un hábito del estado actual por su ID."""
@@ -1595,9 +1770,17 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         if habit is not None:
             delete_dialog.open(habit)
 
+    def open_recovery_dialog() -> None:
+        """Abrir la confirmación con el hueco recuperable actual (RF-2.4)."""
+        selected = state.selected
+        gap = state.recoverable_gap
+        if selected is not None and gap is not None:
+            recovery_dialog.open(selected.habit, gap.dates)
+
     sidebar.on_select = on_select
     sidebar.on_new = open_create_dialog
     registration.on_save = on_register_today
+    registration.on_recover = open_recovery_dialog
     empty_panel.on_create = open_create_dialog
     header.on_edit = open_edit_dialog
     header.on_delete = open_delete_dialog
