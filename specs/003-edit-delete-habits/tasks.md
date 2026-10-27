@@ -104,20 +104,20 @@
 
 ## Fase 6: Integración en `main` (`app.py`)
 
-- [ ] **Tarea 6.1:** Escribir los tests del flujo integrado de edición
+- [x] **Tarea 6.1:** Escribir los tests del flujo integrado de edición
   - **RF:** RF-2.9, RF-4.1, RF-4.2, RF-4.3, RF-4.4, RF-4.7
   - **Hecho cuando:** `tests/test_edit_delete_flow.py` comprueba que editar desde el detalle
     actualiza barra lateral y encabezado, mantiene la selección, reordena si cambia el nombre y
     conserva estadísticas, heatmap y registros; fallan porque `main` aún no conecta la edición.
 
-- [ ] **Tarea 6.2:** Escribir los tests del flujo integrado de eliminación
+- [x] **Tarea 6.2:** Escribir los tests del flujo integrado de eliminación
   - **RF:** RF-3.4, RF-3.6, RF-3.7, RF-3.8, RF-4.5, RF-4.6
   - **Hecho cuando:** `tests/test_edit_delete_flow.py` comprueba que confirmar borra hábito y
     registros, que se selecciona el siguiente hábito, que al borrar el último aparece el estado
     vacío, que se puede crear otro después y que un error de persistencia conserva el hábito;
     fallan porque `main` aún no conecta la eliminación.
 
-- [ ] **Tarea 6.3:** Conectar edición y eliminación en `main`
+- [x] **Tarea 6.3:** Conectar edición y eliminación en `main`
   - **RF:** RF-1.3, RF-1.4, RF-3.3, RF-3.6, RF-3.7, RF-3.8, RF-4.1 a RF-4.7
   - **Hecho cuando:** Los callbacks del encabezado abren el modal de edición y el diálogo de
     confirmación; guardar refresca conservando el hábito editado; confirmar borra y recarga la

@@ -74,6 +74,7 @@ from habits.theme import (
 from habits.storage import (
     init_db,
     create_habit_db,
+    delete_habit_db,
     list_all_habits_db,
     get_completions_db,
     mark_completed_db,
@@ -1443,11 +1444,12 @@ def configure_page(page: ft.Page) -> None:
 def main(page: ft.Page, db_path: str = "data/habits.db"):
     """Punto de entrada de la aplicación Flet.
 
-    Tareas 3.5, 4.1 a 4.4, 5.1 a 5.3 y 6.1 a 6.3: aplica el tema, monta el
-    layout de dos zonas, conecta la creación modal y muestra las estadísticas,
-    el heatmap y el panel “Registrar hoy” del hábito seleccionado. Al
-    registrar el día actual, todas las zonas se actualizan sin reiniciar la
-    aplicación y los duplicados se rechazan.
+    Tareas 3.5, 4.1 a 4.4, 5.1 a 5.4 y 6.1 a 6.3: aplica el tema, monta el
+    layout de dos zonas, conecta la creación modal, la edición y la eliminación
+    con confirmación, y muestra las estadísticas, el heatmap y el panel
+    “Registrar hoy” del hábito seleccionado. Al registrar el día actual, todas
+    las zonas se actualizan sin reiniciar la aplicación y los duplicados se
+    rechazan.
 
     Args:
         page: Página Flet proporcionada por `ft.run`.
@@ -1535,20 +1537,65 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         """Refrescar la interfaz y seleccionar el hábito creado (RF-2.9)."""
         refresh_views(selected_id=result.habit_id)
 
+    def on_habit_updated(result: UpdateHabitResult) -> None:
+        """Refrescar la vista conservando el hábito editado (RF-4.1 a RF-4.4)."""
+        refresh_views(selected_id=result.habit_id)
+
+    def on_habit_deleted(habit_id: int) -> None:
+        """Borrar el hábito y recargar la selección restante.
+
+        RF-3.4, RF-3.6, RF-3.7 y RF-3.8: el borrado es transaccional; si falla,
+        se conserva el hábito y se muestra un aviso sin recargar la vista.
+        """
+        try:
+            delete_habit_db(habit_id, db_path=db_path)
+        except Exception as exc:
+            page.show_dialog(
+                ft.SnackBar(
+                    content=ft.Text(f"⚠️ No se pudo eliminar el hábito: {exc}")
+                )
+            )
+            return
+
+        refresh_views()
+
     form_dialog = HabitFormDialog(
         page,
         on_saved=on_habit_created,
+        on_updated=on_habit_updated,
         db_path=db_path,
     )
+    delete_dialog = DeleteHabitDialog(page, on_confirm=on_habit_deleted)
+
+    def find_habit(habit_id: int) -> Habit | None:
+        """Buscar un hábito del estado actual por su ID."""
+        for habit_state in state.habits:
+            if habit_state.habit.id == habit_id:
+                return habit_state.habit
+        return None
 
     def open_create_dialog() -> None:
         """Abrir el mismo modal desde “+ Nuevo” y el estado vacío."""
         form_dialog.open()
 
+    def open_edit_dialog(habit_id: int) -> None:
+        """Abrir el modal de edición con los datos actuales (RF-1.3)."""
+        habit = find_habit(habit_id)
+        if habit is not None:
+            form_dialog.open_edit(habit)
+
+    def open_delete_dialog(habit_id: int) -> None:
+        """Abrir la confirmación antes de borrar (RF-1.4, RF-3.1)."""
+        habit = find_habit(habit_id)
+        if habit is not None:
+            delete_dialog.open(habit)
+
     sidebar.on_select = on_select
     sidebar.on_new = open_create_dialog
     registration.on_save = on_register_today
     empty_panel.on_create = open_create_dialog
+    header.on_edit = open_edit_dialog
+    header.on_delete = open_delete_dialog
 
     page.add(ft.Container(content=layout, padding=16, expand=True))
 
