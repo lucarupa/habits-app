@@ -1,4 +1,5 @@
 # spec: 002-ui-redesign
+# spec: 004-duplicate-warning-streak-recovery
 """Tests para el cargador de estado — Tarea 3.1, RF-1.1, RF-1.3, RF-1.5, RFN-3."""
 
 import os
@@ -16,7 +17,12 @@ from habits.app_state import (
     load_app_state,
 )
 from habits.core import HabitStats
-from habits.storage import create_habit_db, init_db, mark_completed_db
+from habits.storage import (
+    create_habit_db,
+    init_db,
+    mark_completed_db,
+    mark_recovered_days_db,
+)
 
 
 class TestLoadAppState:
@@ -131,6 +137,143 @@ class TestLoadAppState:
         assert state.selected_id == high_id
         assert state.selected is not None
         assert state.selected.habit.id == high_id
+
+
+class TestRecoveredDaysState:
+    """Estado con días recuperados — Tarea 3.1.
+
+    RF-2.1, RF-2.2, RF-2.9, RF-2.10, RF-2.11, RF-2.12 y RF-2.15: el estado
+    carga las fechas recuperadas, calcula el hueco del hábito seleccionado,
+    excluye los recuperados de “Días registrados” y los marca en el heatmap.
+    """
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        self.today = date(2026, 10, 26)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _days_ago(self, count: int) -> date:
+        """Devolver la fecha situada `count` días antes de hoy."""
+        return self.today - timedelta(days=count)
+
+    def test_load_app_state_reads_recovered_dates(self):
+        """RF-2.15: el estado conserva el subconjunto recuperado de la base."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-01", db_path=self.db_path
+        )
+        mark_completed_db(
+            habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        mark_recovered_days_db(
+            habit_id,
+            [self._days_ago(1).isoformat()],
+            self.db_path,
+        )
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        habit_state = state.habits[0]
+        assert habit_state.completed_dates == {
+            self._days_ago(1),
+            self.today,
+        }
+        assert habit_state.recovered_dates == {self._days_ago(1)}
+
+    def test_recoverable_gap_follows_selected_habit(self):
+        """RF-2.1, RF-2.12: el hueco corresponde al hábito seleccionado."""
+        gap_id = create_habit_db(
+            "Con hueco", "2026-10-01", db_path=self.db_path
+        )
+        full_id = create_habit_db(
+            "Sin hueco", "2026-10-01", db_path=self.db_path
+        )
+        for day in (self._days_ago(3), self.today):
+            mark_completed_db(gap_id, day.isoformat(), db_path=self.db_path)
+        for day in (self._days_ago(2), self._days_ago(1), self.today):
+            mark_completed_db(full_id, day.isoformat(), db_path=self.db_path)
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.habit.id == full_id
+        assert state.recoverable_gap is None
+
+        state.select(gap_id)
+
+        assert state.recoverable_gap is not None
+        assert state.recoverable_gap.dates == (
+            self._days_ago(2),
+            self._days_ago(1),
+        )
+
+    def test_recoverable_gap_is_none_for_three_days(self):
+        """RF-2.2: un hueco de tres días no ofrece recuperación."""
+        habit_id = create_habit_db(
+            "Con hueco largo", "2026-10-01", db_path=self.db_path
+        )
+        for day in (self._days_ago(4), self.today):
+            mark_completed_db(habit_id, day.isoformat(), db_path=self.db_path)
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.habit.id == habit_id
+        assert state.recoverable_gap is None
+
+    def test_stats_cards_exclude_recovered_from_registered_days(self):
+        """RF-2.9, RF-2.10: los recuperados suman a la racha, no a los días."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-01", db_path=self.db_path
+        )
+        mark_completed_db(
+            habit_id, self._days_ago(3).isoformat(), db_path=self.db_path
+        )
+        mark_completed_db(
+            habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        mark_recovered_days_db(
+            habit_id,
+            [
+                self._days_ago(2).isoformat(),
+                self._days_ago(1).isoformat(),
+            ],
+            self.db_path,
+        )
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert [card.value for card in state.stat_cards()] == [4, 4, 2]
+
+    def test_heatmap_cells_flag_recovered_days(self):
+        """RF-2.11: el heatmap recibe las fechas recuperadas."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-01", db_path=self.db_path
+        )
+        mark_completed_db(
+            habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        mark_recovered_days_db(
+            habit_id,
+            [self._days_ago(1).isoformat()],
+            self.db_path,
+        )
+
+        state = load_app_state(self.db_path, today=self.today)
+        cells = {cell.date: cell for cell in state.heatmap_cells()}
+
+        assert cells[self._days_ago(1)].completed is True
+        assert cells[self._days_ago(1)].recovered is True
+        assert cells[self.today].completed is True
+        assert cells[self.today].recovered is False
+        assert cells[self._days_ago(2)].completed is False
+        assert cells[self._days_ago(2)].recovered is False
 
 
 class TestSidebarItems:

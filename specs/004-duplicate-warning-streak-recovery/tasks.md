@@ -53,20 +53,20 @@
 
 ## Fase 3: Estado y estadísticas de la aplicación (`app_state.py`)
 
-- [ ] **Tarea 3.1:** Escribir los tests de carga y cálculo con recuperados
+- [x] **Tarea 3.1:** Escribir los tests de carga y cálculo con recuperados
   - **RF:** RF-2.1, RF-2.2, RF-2.9, RF-2.10, RF-2.11, RF-2.12, RF-2.15
   - **Hecho cuando:** Los tests verifican que el estado carga `recovered_dates`, que el hueco
     recuperable sigue al hábito seleccionado, que las tarjetas excluyen recuperados de “Días
     registrados” y que el heatmap recibe las fechas recuperadas; la suite muestra los fallos
     esperados.
 
-- [ ] **Tarea 3.2:** Implementar `HabitState.recovered_dates`, la carga y el hueco recuperable
+- [x] **Tarea 3.2:** Implementar `HabitState.recovered_dates`, la carga y el hueco recuperable
   - **RF:** RF-2.1, RF-2.2, RF-2.9, RF-2.10, RF-2.11, RF-2.12, RF-2.15
   - **Hecho cuando:** `load_app_state` lee las fechas recuperadas, `HabitState` las conserva,
     `AppState` expone el hueco del hábito seleccionado, `heatmap_cells` propaga las fechas
     recuperadas y los tests de la tarea 3.1 pasan.
 
-- [ ] **Tarea 3.3:** Añadir la etiqueta del heatmap y ajustar las pruebas de estado existentes
+- [x] **Tarea 3.3:** Añadir la etiqueta del heatmap y ajustar las pruebas de estado existentes
   - **RF:** RF-2.11
   - **Hecho cuando:** Existe la etiqueta “Recuperado” en el estado, los tests de `test_app_state`
     y `test_stats_heatmap` pasan y no se rompe ninguna construcción previa de `HabitState` o

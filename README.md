@@ -19,15 +19,16 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 215 pruebas puras + 65 con Flet (280 en `.venv`)
+- **pytest** — 220 pruebas puras + 65 con Flet (285 en `.venv`)
 
 ## Estado de implementación
 
 Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
 
-Las fases 1 y 2 (detección de huecos recuperables, estadísticas con días recuperados y
-persistencia de `recovered` en `core.py` y `storage.py`) están implementadas. Las fases 3 a 6
-siguen pendientes; el detalle está en `specs/004-duplicate-warning-streak-recovery/tasks.md`.
+Las fases 1 a 3 (detección de huecos recuperables, estadísticas con días recuperados,
+persistencia de `recovered` y carga del estado en `core.py`, `storage.py` y `app_state.py`) están
+implementadas. Las fases 4 a 6 siguen pendientes; el detalle está en
+`specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
 
@@ -109,10 +110,11 @@ Las siguientes piezas en `habits/app_state.py` están completas y testeadas:
 
 - `load_app_state(db_path, today)` — obtiene hábitos y fechas desde `storage.py`, calcula estadísticas con `core.py`, ordena por racha descendente y nombre ascendente, y selecciona el primer hábito.
 - `AppState` — mantiene la lista de hábitos, el ID seleccionado y la fecha usada para las estadísticas y el heatmap.
-- `HabitState` — agrupa un hábito, sus estadísticas y sus fechas completadas.
-- `AppState.stat_cards()` — devuelve las tres tarjetas con sus valores.
-- `AppState.heatmap_cells()` / `heatmap_rows()` — construyen las 35 celdas y las agrupan en 7 filas de lunes a domingo por 5 semanas.
+- `HabitState` — agrupa un hábito, sus estadísticas, sus fechas completadas y el subconjunto de fechas recuperadas.
+- `AppState.stat_cards()` — devuelve las tres tarjetas con sus valores; “Días registrados” excluye los recuperados.
+- `AppState.heatmap_cells()` / `heatmap_rows()` — construyen las 35 celdas, marcan las recuperadas y las agrupan en 7 filas de lunes a domingo por 5 semanas.
 - `AppState.is_completed_today` — indica si el hábito seleccionado ya tiene un registro para la fecha actual.
+- `AppState.recoverable_gap` — devuelve el hueco de uno o dos días del hábito seleccionado que se puede recuperar.
 
 Este módulo no importa Flet: la interfaz solo consume el estado ya calculado (RFN-3).
 
@@ -168,7 +170,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 215 pruebas puras + 65 con Flet (280 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 220 pruebas puras + 65 con Flet (285 en `.venv`).
 
 ## Iconos
 
@@ -331,7 +333,7 @@ tests/
 ├── test_core.py     # Tests de lógica de dominio (52 tests)
 ├── test_recovery.py # Tests de huecos recuperables y días recuperados (16 tests)
 ├── test_storage.py  # Tests de persistencia (44 tests)
-├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
+├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (20 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (41 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)

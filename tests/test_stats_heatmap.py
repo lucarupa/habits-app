@@ -8,6 +8,7 @@ import os
 import tempfile
 from datetime import date, timedelta
 
+from habits import app_state
 from habits.app_state import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
@@ -201,10 +202,11 @@ class TestHeatmapModel:
         assert all(not cell.completed for cell in cells if not cell.is_future)
 
     def test_labels_are_defined_in_spanish(self):
-        """RF-4.1, RF-4.5: Título y leyenda visibles en español."""
+        """RF-2.11, RF-4.1, RF-4.5: Título y leyenda visibles en español."""
         assert HEATMAP_TITLE == "Actividad (últimas 5 semanas)"
         assert HEATMAP_COMPLETED_LABEL == "Completado"
         assert HEATMAP_NOT_COMPLETED_LABEL == "No completado"
+        assert app_state.HEATMAP_RECOVERED_LABEL == "Recuperado"
 
 
 class TestRefreshAfterRegistration:

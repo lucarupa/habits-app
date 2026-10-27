@@ -1,4 +1,5 @@
 # spec: 002-ui-redesign
+# spec: 004-duplicate-warning-streak-recovery
 """Cargador de estado de la aplicación.
 
 Orquesta la lectura de hábitos y fechas desde `storage.py` y delega los
@@ -13,10 +14,16 @@ from habits.core import (
     Habit,
     HabitStats,
     HeatmapDay,
+    RecoverableGap,
     build_activity_heatmap,
+    find_recoverable_gap,
     get_habit_stats,
 )
-from habits.storage import get_completions_db, list_all_habits_db
+from habits.storage import (
+    get_completions_db,
+    get_recovered_dates_db,
+    list_all_habits_db,
+)
 
 HABIT_SUBTITLE = "Hábito de estudio"
 EMPTY_SIDEBAR_MESSAGE = "No hay hábitos aún"
@@ -30,6 +37,7 @@ STAT_REGISTERED_DAYS_LABEL = "Días registrados"
 HEATMAP_TITLE = "Actividad (últimas 5 semanas)"
 HEATMAP_COMPLETED_LABEL = "Completado"
 HEATMAP_NOT_COMPLETED_LABEL = "No completado"
+HEATMAP_RECOVERED_LABEL = "Recuperado"
 
 
 def format_date_label(value: date) -> str:
@@ -51,12 +59,15 @@ class HabitState:
     Atributos:
         habit: El hábito de dominio.
         stats: Racha actual, mejor racha y días registrados.
-        completed_dates: Fechas en las que el hábito se completó.
+        completed_dates: Fechas en las que el hábito se completó, incluidas
+            las recuperadas.
+        recovered_dates: Subconjunto de fechas marcadas como recuperadas.
     """
 
     habit: Habit
     stats: HabitStats
     completed_dates: set[date]
+    recovered_dates: set[date] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
@@ -164,6 +175,20 @@ class AppState:
         if selected is None:
             return False
         return self.today in selected.completed_dates
+
+    @property
+    def recoverable_gap(self) -> RecoverableGap | None:
+        """Devolver el hueco recuperable del hábito seleccionado.
+
+        Returns:
+            El hueco más reciente de uno o dos días sin registro, o None si
+            no hay hábito seleccionado o el hueco no es recuperable
+            (RF-2.1, RF-2.2 y RF-2.18).
+        """
+        selected = self.selected
+        if selected is None:
+            return None
+        return find_recoverable_gap(selected.completed_dates, self.today)
 
     def empty_state(self) -> EmptyState | None:
         """Construir el estado vacío, o None si ya existen hábitos.
@@ -274,6 +299,7 @@ class AppState:
         return build_activity_heatmap(
             selected.completed_dates,
             self.today,
+            recovered_dates=selected.recovered_dates,
             weeks=weeks,
         )
 
@@ -303,16 +329,18 @@ def load_app_state(
 ) -> AppState:
     """Cargar el estado de la aplicación desde la base de datos.
 
-    Obtiene todos los hábitos y sus fechas de completado desde `storage.py`,
-    calcula las estadísticas con `core.py`, ordena por racha actual descendente
-    y nombre ascendente, y selecciona el primer hábito de la lista.
+    Obtiene todos los hábitos y sus fechas de completado y recuperadas desde
+    `storage.py`, calcula las estadísticas con `core.py`, ordena por racha
+    actual descendente y nombre ascendente, y selecciona el primer hábito de
+    la lista.
 
     Args:
         db_path: Ruta al archivo de base de datos SQLite.
         today: Fecha actual; si se omite, se usa `date.today()`.
 
     Returns:
-        Un AppState con los hábitos, sus estadísticas y la selección inicial.
+        Un AppState con los hábitos, sus estadísticas, sus fechas recuperadas
+        y la selección inicial.
     """
     current_day = today or date.today()
     rows = list_all_habits_db(db_path)
@@ -323,6 +351,10 @@ def load_app_state(
             date.fromisoformat(value)
             for value in get_completions_db(row.id, db_path)
         }
+        recovered_dates = {
+            date.fromisoformat(value)
+            for value in get_recovered_dates_db(row.id, db_path)
+        }
         habits_state.append(
             HabitState(
                 habit=Habit(
@@ -331,8 +363,13 @@ def load_app_state(
                     start_date=date.fromisoformat(row.start_date),
                     icon=row.icon,
                 ),
-                stats=get_habit_stats(completed_dates, current_day),
+                stats=get_habit_stats(
+                    completed_dates,
+                    current_day,
+                    recovered_dates,
+                ),
                 completed_dates=completed_dates,
+                recovered_dates=recovered_dates,
             )
         )
 
