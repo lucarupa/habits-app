@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 179 pruebas puras + 50 con Flet (229 en `.venv`)
+- **pytest** — 179 pruebas puras + 58 con Flet (237 en `.venv`)
 
 ## Estado de implementación
 
@@ -29,17 +29,19 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 | Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ✅ Completada |
 | Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ✅ Completada |
 | Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ✅ Completada |
-| Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
+| Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ✅ Completada |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
 | Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **11 / 21 completadas** |
+| **Total** | | **21** | **15 / 21 completadas** |
 
-Las Fases 1 a 4 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
+Las Fases 1 a 5 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
 dominio, `storage.py` persiste la edición y el borrado transaccional, `habit_form.py` valida la
-edición, y el diálogo modal ya distingue creación y edición con un campo de fecha de solo lectura
-y calendario en español que bloquea los días futuros. La interfaz aún no ofrece las acciones de
-editar y eliminar en el detalle ni su integración en `main`. El detalle de cada tarea, con sus RF
-y criterios “Hecho cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
+edición, y el diálogo modal distingue creación y edición con un campo de fecha de solo lectura y
+calendario en español que bloquea los días futuros. El encabezado del detalle muestra las
+acciones “Editar” y “Eliminar” solo con un hábito seleccionado, y el diálogo de confirmación
+muestra el nombre, advierte del borrado permanente y solo notifica al aceptar. Falta conectar
+edición y eliminación en `main` (Fase 6). El detalle de cada tarea, con sus RF y criterios
+“Hecho cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
@@ -141,6 +143,7 @@ En `habits/app.py`:
   - `validate_habit_update(habit, data, today)` — reutiliza las reglas de nombre, conserva la fecha y el icono actuales y rechaza fechas futuras.
   - `update_habit_from_form(habit, data, db_path, today)` — valida la edición, delega en `update_habit` y `update_habit_db` y no modifica los registros diarios.
 - `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, campo de fecha de solo lectura y selector de icono. En creación precarga hoy; en edición precarga nombre, icono y fecha del hábito y cambia el título a “Editar hábito”. El calendario usa español, bloquea los días futuros y solo actualiza la fecha al confirmar. Ante un error permanece abierto y al guardar se cierra y notifica el resultado.
+- `DeleteHabitDialog` en `habits/app.py` — diálogo modal de confirmación que muestra el nombre del hábito, advierte de que el borrado es permanente e incluye sus registros, ofrece “Cancelar” y “Eliminar” y solo notifica el ID al confirmar; la persistencia queda en `main`.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
 
@@ -311,7 +314,7 @@ tests/
 ├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
-├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
+├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (20 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 scripts/

@@ -266,11 +266,17 @@ class Sidebar(ft.Container):
 class HabitDetailHeader(ft.Container):
     """Encabezado del panel de detalle del hábito seleccionado.
 
-    Tarea 3.3, RF-3.1, RF-7.4. Muestra el icono, el nombre, el subtítulo
-    “Hábito de estudio” y la fecha de inicio en dd/mm/aaaa.
+    Tareas 3.3 y 5.2, RF-1.1 a RF-1.5, RF-3.1 y RF-7.4. Muestra el icono, el
+    nombre, el subtítulo “Hábito de estudio”, la fecha de inicio en dd/mm/aaaa
+    y las acciones “Editar” y “Eliminar”, que solo aparecen con un hábito
+    seleccionado y notifican su ID mediante callbacks.
     """
 
     state: AppState | None = skip_field()
+    on_edit: Callable[[int], None] | None = None
+    on_delete: Callable[[int], None] | None = None
+    edit_button: ft.TextButton | None = skip_field()
+    delete_button: ft.TextButton | None = skip_field()
     _body: ft.Column | None = None
 
     def init(self):
@@ -291,8 +297,21 @@ class HabitDetailHeader(ft.Container):
         )
         self.visible = header is not None
         if header is None:
+            self.edit_button = None
+            self.delete_button = None
             self._body.controls = []
             return
+
+        self.edit_button = ft.TextButton(
+            content="Editar",
+            icon=ft.Icons.EDIT,
+            on_click=self._handle_edit,
+        )
+        self.delete_button = ft.TextButton(
+            content="Eliminar",
+            icon=ft.Icons.DELETE_OUTLINE,
+            on_click=self._handle_delete,
+        )
 
         self._body.controls = [
             ft.Row(
@@ -324,6 +343,8 @@ class HabitDetailHeader(ft.Container):
                         spacing=2,
                         expand=True,
                     ),
+                    self.edit_button,
+                    self.delete_button,
                 ],
                 spacing=12,
                 vertical_alignment="center",
@@ -334,6 +355,18 @@ class HabitDetailHeader(ft.Container):
                 color=TEXT_SECONDARY,
             ),
         ]
+
+    def _handle_edit(self, event=None) -> None:
+        """Notificar la edición del hábito seleccionado (RF-1.3)."""
+        selected = self.state.selected if self.state is not None else None
+        if selected is not None and self.on_edit is not None:
+            self.on_edit(selected.habit.id)
+
+    def _handle_delete(self, event=None) -> None:
+        """Notificar la eliminación del hábito seleccionado (RF-1.4)."""
+        selected = self.state.selected if self.state is not None else None
+        if selected is not None and self.on_delete is not None:
+            self.on_delete(selected.habit.id)
 
 
 @ft.control
@@ -928,6 +961,92 @@ class HabitFormDialog:
         self.error_text.visible = bool(message)
         if self.dialog.open:
             self.page.update()
+
+
+DELETE_DIALOG_TITLE = "Eliminar hábito"
+DELETE_WARNING = (
+    "⚠️ Esta acción es permanente y eliminará el hábito junto con todos "
+    "sus registros diarios."
+)
+
+
+class DeleteHabitDialog:
+    """Diálogo modal de confirmación para eliminar un hábito.
+
+    Tarea 5.4, RF-3.1 a RF-3.5. Muestra el nombre del hábito y advierte de
+    que el borrado es permanente e incluye sus registros, ofrece “Cancelar” y
+    “Eliminar”, y solo notifica el ID al confirmar. No accede a datos: la
+    persistencia queda en `main` (Constitución, principio 3).
+    """
+
+    def __init__(
+        self,
+        page: ft.Page,
+        on_confirm: Callable[[int], None] | None = None,
+    ) -> None:
+        """Construir el diálogo de confirmación.
+
+        Args:
+            page: Página Flet sobre la que se muestra el diálogo.
+            on_confirm: Callback invocado con el ID del hábito confirmado.
+        """
+        self.page = page
+        self.on_confirm = on_confirm
+        self.habit: Habit | None = None
+
+        self.name_text = ft.Text(
+            value="",
+            size=16,
+            weight="bold",
+            color=TEXT_PRIMARY,
+        )
+        self.warning_text = ft.Text(
+            value=DELETE_WARNING,
+            size=14,
+            color=TEXT_SECONDARY,
+        )
+        self.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(DELETE_DIALOG_TITLE, size=20, weight="bold"),
+            content=ft.Column(
+                controls=[self.name_text, self.warning_text],
+                spacing=12,
+                tight=True,
+                width=420,
+            ),
+            actions=[
+                ft.TextButton(
+                    content="Cancelar",
+                    on_click=self.close,
+                ),
+                ft.Button(
+                    content="Eliminar",
+                    icon=ft.Icons.DELETE,
+                    on_click=self.confirm,
+                ),
+            ],
+            actions_alignment="end",
+        )
+
+    def open(self, habit: Habit) -> None:
+        """Abrir el diálogo con el nombre del hábito a eliminar (RF-3.1)."""
+        self.habit = habit
+        self.name_text.value = habit.name
+        self.page.show_dialog(self.dialog)
+
+    def close(self, event=None) -> None:
+        """Cerrar el diálogo sin eliminar nada (RF-3.3)."""
+        self.habit = None
+        self.page.pop_dialog()
+
+    def confirm(self, event=None) -> None:
+        """Cerrar el diálogo y notificar la confirmación (RF-3.4, RF-3.5)."""
+        habit = self.habit
+        if habit is None:
+            return
+        self.close()
+        if self.on_confirm is not None:
+            self.on_confirm(habit.id)
 
 
 @ft.control

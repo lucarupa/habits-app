@@ -1,4 +1,5 @@
 # spec: 002-ui-redesign
+# spec: 003-edit-delete-habits
 """Tests de los widgets de estadísticas y heatmap — Tareas 5.1 a 5.3.
 
 Se ejecutan con el intérprete del proyecto (`.venv`), que tiene Flet instalado.
@@ -14,7 +15,12 @@ pytest.importorskip("flet")
 
 import flet as ft
 
-from habits.app import ActivityHeatmap, HabitStatsCards, Sidebar
+from habits.app import (
+    ActivityHeatmap,
+    HabitDetailHeader,
+    HabitStatsCards,
+    Sidebar,
+)
 from habits.app_state import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
@@ -25,7 +31,12 @@ from habits.app_state import (
     AppState,
     load_app_state,
 )
-from habits.storage import create_habit_db, init_db, mark_completed_db
+from habits.storage import (
+    create_habit_db,
+    get_habit_db,
+    init_db,
+    mark_completed_db,
+)
 from habits.theme import ACCENT_GREEN, HEATMAP_EMPTY, HEATMAP_FUTURE
 
 TODAY = date(2024, 10, 24)
@@ -37,12 +48,59 @@ def collect_texts(control) -> list[str]:
     value = getattr(control, "value", None)
     if isinstance(value, str):
         texts.append(value)
+    title = getattr(control, "title", None)
+    if title is not None:
+        texts.extend(collect_texts(title))
     for child in getattr(control, "controls", None) or []:
         texts.extend(collect_texts(child))
     content = getattr(control, "content", None)
     if content is not None:
         texts.extend(collect_texts(content))
     return texts
+
+
+def collect_buttons(control) -> list[ft.Button]:
+    """Recorrer un árbol de controles Flet y recoger sus botones."""
+    buttons: list[ft.Button] = []
+    if isinstance(control, (ft.Button, ft.TextButton)):
+        buttons.append(control)
+    for child in getattr(control, "controls", None) or []:
+        buttons.extend(collect_buttons(child))
+    for child in getattr(control, "actions", None) or []:
+        buttons.extend(collect_buttons(child))
+    content = getattr(control, "content", None)
+    if content is not None and not isinstance(content, str):
+        buttons.extend(collect_buttons(content))
+    return buttons
+
+
+def button_label(button: ft.Button) -> str | None:
+    """Obtener el texto visible de un botón de Flet."""
+    content = button.content
+    if isinstance(content, str):
+        return content
+    return getattr(content, "value", None)
+
+
+class FakePage:
+    """Página mínima que registra los diálogos abiertos y cerrados."""
+
+    def __init__(self):
+        self.open_dialogs = []
+
+    def show_dialog(self, dialog):
+        dialog.open = True
+        self.open_dialogs.append(dialog)
+
+    def pop_dialog(self):
+        if not self.open_dialogs:
+            return None
+        dialog = self.open_dialogs.pop()
+        dialog.open = False
+        return dialog
+
+    def update(self):
+        pass
 
 
 class TestHabitStatsCards:
@@ -313,3 +371,143 @@ class TestSidebarItemLayout:
         assert isinstance(row.controls[1], ft.Icon)
         assert row.controls[2].value == "Leer"
         assert row.controls[3].value == "🔥 1 día"
+
+
+class TestHabitDetailHeaderActions:
+    """Tests de las acciones del detalle — Tarea 5.1."""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        self.habit_id = create_habit_db(
+            "Leer", "2024-09-01", icon="book", db_path=self.db_path
+        )
+        self.state = load_app_state(self.db_path, today=TODAY)
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_detail_header_shows_edit_and_delete_actions(self):
+        """RF-1.1: con hábito seleccionado aparecen ambas acciones."""
+        header = HabitDetailHeader(state=self.state)
+
+        assert header.visible is True
+        assert header.edit_button is not None
+        assert header.delete_button is not None
+        assert header.edit_button.content == "Editar"
+        assert header.delete_button.content == "Eliminar"
+        assert header.edit_button.visible is True
+        assert header.delete_button.visible is True
+
+    def test_empty_detail_hides_edit_and_delete_actions(self):
+        """RF-1.2: sin hábitos no aparecen las acciones."""
+        header = HabitDetailHeader(state=AppState(today=TODAY))
+
+        assert header.visible is False
+        assert header.edit_button is None
+        assert header.delete_button is None
+        assert "Editar" not in collect_texts(header)
+        assert "Eliminar" not in collect_texts(header)
+
+    def test_detail_actions_invoke_callbacks_with_habit_id(self):
+        """RF-1.3, RF-1.4: cada botón notifica el ID del hábito."""
+        edited: list[int] = []
+        deleted: list[int] = []
+        header = HabitDetailHeader(
+            state=self.state,
+            on_edit=edited.append,
+            on_delete=deleted.append,
+        )
+
+        header.edit_button.on_click(None)
+        header.delete_button.on_click(None)
+
+        assert edited == [self.habit_id]
+        assert deleted == [self.habit_id]
+
+    def test_sidebar_does_not_show_edit_or_delete_actions(self):
+        """RF-1.5: las acciones solo están en el panel de detalle."""
+        sidebar = Sidebar(state=self.state)
+
+        texts = collect_texts(sidebar)
+
+        assert "Editar" not in texts
+        assert "Eliminar" not in texts
+
+
+class TestDeleteHabitDialog:
+    """Tests del diálogo de confirmación de borrado — Tarea 5.3."""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        create_habit_db(
+            "Leer", "2024-09-01", icon="book", db_path=self.db_path
+        )
+        self.state = load_app_state(self.db_path, today=TODAY)
+        self.habit = self.state.selected.habit
+        self.page = FakePage()
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_delete_dialog_shows_name_and_warning(self):
+        """RF-3.1: El diálogo muestra el nombre y advierte del borrado."""
+        from habits.app import DELETE_WARNING, DeleteHabitDialog
+
+        dialog = DeleteHabitDialog(self.page)
+
+        dialog.open(self.habit)
+
+        assert dialog.dialog.open is True
+        assert self.page.open_dialogs == [dialog.dialog]
+        texts = collect_texts(dialog.dialog)
+        assert self.habit.name in texts
+        assert DELETE_WARNING in texts
+
+    def test_delete_dialog_offers_cancel_and_delete_actions(self):
+        """RF-3.2: El diálogo ofrece “Cancelar” y “Eliminar”."""
+        from habits.app import DeleteHabitDialog
+
+        dialog = DeleteHabitDialog(self.page)
+
+        dialog.open(self.habit)
+
+        labels = [button_label(button) for button in collect_buttons(dialog.dialog)]
+        assert labels == ["Cancelar", "Eliminar"]
+
+    def test_delete_cancel_keeps_habit_and_selection(self):
+        """RF-3.3: Cancelar cierra sin borrar ni notificar."""
+        from habits.app import DeleteHabitDialog
+
+        confirmed: list[int] = []
+        dialog = DeleteHabitDialog(self.page, on_confirm=confirmed.append)
+        dialog.open(self.habit)
+
+        dialog.close()
+
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []
+        assert confirmed == []
+        assert get_habit_db(self.habit.id, self.db_path) is not None
+
+    def test_delete_confirm_notifies_the_habit_id(self):
+        """RF-3.4, RF-3.5: Solo se notifica al confirmar, con el ID."""
+        from habits.app import DeleteHabitDialog
+
+        confirmed: list[int] = []
+        dialog = DeleteHabitDialog(self.page, on_confirm=confirmed.append)
+        dialog.open(self.habit)
+
+        assert confirmed == []
+        assert get_habit_db(self.habit.id, self.db_path) is not None
+
+        dialog.confirm()
+
+        assert confirmed == [self.habit.id]
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []

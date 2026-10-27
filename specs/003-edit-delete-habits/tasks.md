@@ -79,24 +79,24 @@
 
 ## Fase 5: Acciones del detalle y confirmación de borrado (`app.py`)
 
-- [ ] **Tarea 5.1:** Escribir los tests de las acciones del detalle
+- [x] **Tarea 5.1:** Escribir los tests de las acciones del detalle
   - **RF:** RF-1.1, RF-1.2, RF-1.3, RF-1.4, RF-1.5
   - **Hecho cuando:** Los tests comprueban que “Editar” y “Eliminar” aparecen con un hábito
     seleccionado, que no aparecen en el estado vacío, que la barra lateral no las muestra y que
     cada botón invoca su callback con el ID correcto; fallan porque las acciones no existen.
 
-- [ ] **Tarea 5.2:** Implementar las acciones en `HabitDetailHeader`
+- [x] **Tarea 5.2:** Implementar las acciones en `HabitDetailHeader`
   - **RF:** RF-1.1, RF-1.2, RF-1.3, RF-1.4, RF-1.5
   - **Hecho cuando:** El encabezado muestra ambas acciones, las oculta sin selección y notifica
     edición y eliminación mediante callbacks; los tests de la tarea 5.1 pasan.
 
-- [ ] **Tarea 5.3:** Escribir los tests del diálogo de confirmación de borrado
+- [x] **Tarea 5.3:** Escribir los tests del diálogo de confirmación de borrado
   - **RF:** RF-3.1, RF-3.2, RF-3.3, RF-3.5
   - **Hecho cuando:** Los tests comprueban que el diálogo muestra el nombre y la advertencia, que
     ofrece “Cancelar” y “Eliminar”, que cancelar no borra nada y que solo se notifica al
     confirmar; fallan porque el diálogo no existe.
 
-- [ ] **Tarea 5.4:** Implementar el diálogo de confirmación de borrado
+- [x] **Tarea 5.4:** Implementar el diálogo de confirmación de borrado
   - **RF:** RF-3.1, RF-3.2, RF-3.3, RF-3.5
   - **Hecho cuando:** El diálogo muestra el nombre del hábito, advierte del borrado permanente de
     sus registros, cancela sin cambios y notifica la confirmación con el ID; los tests de la
