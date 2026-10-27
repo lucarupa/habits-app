@@ -50,7 +50,7 @@
 
 ## Fase 4: Calendario y modo edición del modal (`app.py`)
 
-- [ ] **Tarea 4.1:** Escribir los tests del calendario en el diálogo de creación
+- [x] **Tarea 4.1:** Escribir los tests del calendario en el diálogo de creación
   - **RF:** RF-5.1, RF-5.3, RF-5.4, RF-5.5, RF-5.6, RF-5.7, RF-5.8
   - **Hecho cuando:** `tests/test_habit_dialog.py` comprueba que el campo de fecha es de solo
     lectura, que muestra la fecha actual al abrir, que al pulsarlo se muestra un calendario con
@@ -58,20 +58,20 @@
     cancelar conserva el valor y que el calendario usa español. Se actualizan los tests
     existentes que esperaban un campo de fecha vacío.
 
-- [ ] **Tarea 4.2:** Implementar el calendario y el campo de fecha de solo lectura
+- [x] **Tarea 4.2:** Implementar el calendario y el campo de fecha de solo lectura
   - **RF:** RF-5.1, RF-5.3, RF-5.4, RF-5.5, RF-5.6, RF-5.7, RF-5.8
   - **Hecho cuando:** El diálogo usa un calendario de Flet en modo solo calendario, con última
     fecha igual a hoy, idioma español y campo de fecha no editable; los tests de la tarea 4.1
     pasan.
 
-- [ ] **Tarea 4.3:** Escribir los tests del modo edición del modal
+- [x] **Tarea 4.3:** Escribir los tests del modo edición del modal
   - **RF:** RF-1.3, RF-2.1, RF-2.2, RF-2.3, RF-2.4, RF-2.9, RF-2.10, RF-5.2
   - **Hecho cuando:** `tests/test_habit_dialog.py` comprueba que el modo edición precarga nombre,
     icono y fecha, que guardar persiste y notifica, que cancelar no modifica el hábito y que un
     error de validación mantiene el modal abierto; los tests fallan porque el modo edición no
     existe.
 
-- [ ] **Tarea 4.4:** Implementar el modo edición del `HabitFormDialog`
+- [x] **Tarea 4.4:** Implementar el modo edición del `HabitFormDialog`
   - **RF:** RF-1.3, RF-2.1, RF-2.2, RF-2.9, RF-2.10, RF-5.2
   - **Hecho cuando:** El diálogo distingue creación y edición, precarga los datos del hábito,
     cambia el título, envía la edición a `update_habit_from_form` y conserva el flujo de creación;

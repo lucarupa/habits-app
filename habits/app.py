@@ -1,4 +1,5 @@
 # spec: 001-habits-mvp
+# spec: 003-edit-delete-habits
 """Interfaz de escritorio para Habits App.
 
 Capa de presentación en Flet 1.0: vistas y navegación, sin lógica de negocio.
@@ -7,7 +8,7 @@ Delega toda la lógica a `core.py` y `storage.py`.
 Constitución principio 3: la capa de interfaz nunca contiene cálculos ni acceso a datos.
 """
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -43,7 +44,9 @@ from habits.habit_form import (
     MAX_NAME_LENGTH,
     CreateHabitResult,
     HabitFormData,
+    UpdateHabitResult,
     create_habit_from_form,
+    update_habit_from_form,
 )
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
@@ -688,19 +691,22 @@ class EmptyDetailPanel(ft.Container):
 
 
 class HabitFormDialog:
-    """Diálogo modal para crear un hábito sin abandonar la vista actual.
+    """Diálogo modal para crear o editar un hábito sin abandonar la vista.
 
-    Tareas 4.1 a 4.3, RF-2.1 a RF-2.7, RF-2.9 y RF-2.10. Contiene el nombre
-    obligatorio, la fecha opcional en dd/mm/aaaa y el selector de icono. La
-    validación y la persistencia se delegan en `habit_form.py`; ante un error
-    el diálogo permanece abierto y, al guardar correctamente, se cierra y
-    notifica el hábito creado.
+    Tareas 4.1 a 4.4, RF-1.3, RF-2.1 a RF-2.10 y RF-5.1 a RF-5.8. En creación
+    contiene el nombre obligatorio, la fecha de inicio precargada con hoy y el
+    selector de icono; en edición precarga los datos del hábito. El campo de
+    fecha es de solo lectura y la fecha se elige en un calendario en español
+    que bloquea los días futuros (RF-5). La validación y la persistencia se
+    delegan en `habit_form.py`; ante un error el diálogo permanece abierto y,
+    al guardar correctamente, se cierra y notifica el resultado.
     """
 
     def __init__(
         self,
         page: ft.Page,
         on_saved: Callable[[CreateHabitResult], None] | None = None,
+        on_updated: Callable[[UpdateHabitResult], None] | None = None,
         db_path: str = "data/habits.db",
         today: date | None = None,
     ) -> None:
@@ -709,13 +715,17 @@ class HabitFormDialog:
         Args:
             page: Página Flet sobre la que se muestra el diálogo.
             on_saved: Callback invocado con el hábito recién creado.
+            on_updated: Callback invocado con el hábito editado.
             db_path: Ruta a la base de datos SQLite.
             today: Fecha actual; permite fijarla en tests.
         """
         self.page = page
         self.on_saved = on_saved
+        self.on_updated = on_updated
         self.db_path = db_path
         self.today = today
+        self.selected_date = today or date.today()
+        self.editing_habit: Habit | None = None
 
         self.name_field = ft.TextField(
             label="Nombre del hábito",
@@ -725,10 +735,23 @@ class HabitFormDialog:
             border_radius=8,
         )
         self.date_field = ft.TextField(
-            label="Fecha de inicio (opcional)",
+            label="Fecha de inicio",
             hint_text="dd/mm/aaaa",
             max_length=10,
+            read_only=True,
             border_radius=8,
+            on_click=self.open_date_picker,
+        )
+        self.date_picker = ft.DatePicker(
+            value=self.selected_date,
+            current_date=self.today or date.today(),
+            last_date=self.today or date.today(),
+            entry_mode=ft.DatePickerEntryMode.CALENDAR_ONLY,
+            locale=ft.Locale(language_code="es", country_code="ES"),
+            help_text="Selecciona la fecha de inicio",
+            cancel_text="Cancelar",
+            confirm_text="Aceptar",
+            on_change=self.handle_date_change,
         )
         self.icon_dropdown = ft.Dropdown(
             label="Icono",
@@ -779,45 +802,125 @@ class HabitFormDialog:
         )
 
     def open(self) -> None:
-        """Abrir el diálogo con un formulario limpio (RF-2.1)."""
+        """Abrir el diálogo de creación con la fecha de hoy precargada.
+
+        RF-2.1, RF-5.1 y RF-5.8: el formulario parte limpio, el campo de fecha
+        muestra hoy y es de solo lectura.
+        """
+        today = self.today or date.today()
+        self.editing_habit = None
+        self.dialog.title.value = "Nuevo hábito"
+        self.selected_date = today
         self.name_field.value = ""
-        self.date_field.value = ""
+        self.date_field.value = today.strftime("%d/%m/%Y")
         self.icon_dropdown.value = DEFAULT_ICON
         self.error_text.value = ""
         self.error_text.visible = False
+        self.date_picker.value = today
+        self.date_picker.current_date = today
+        self.date_picker.last_date = today
         self.page.show_dialog(self.dialog)
 
+    def open_edit(self, habit: Habit) -> None:
+        """Abrir el diálogo de edición con los datos actuales del hábito.
+
+        RF-1.3, RF-2.1, RF-2.2 y RF-5.2: el nombre, el icono y la fecha de
+        inicio aparecen precargados, con la fecha en formato dd/mm/aaaa.
+        """
+        today = self.today or date.today()
+        self.editing_habit = habit
+        self.dialog.title.value = "Editar hábito"
+        self.selected_date = habit.start_date
+        self.name_field.value = habit.name
+        self.date_field.value = habit.start_date.strftime("%d/%m/%Y")
+        self.icon_dropdown.value = habit.icon
+        self.error_text.value = ""
+        self.error_text.visible = False
+        self.date_picker.value = habit.start_date
+        self.date_picker.current_date = today
+        self.date_picker.last_date = today
+        self.page.show_dialog(self.dialog)
+
+    def open_date_picker(self, event=None) -> None:
+        """Abrir el calendario con los días futuros deshabilitados.
+
+        RF-5.3 y RF-5.6: el calendario parte de la fecha seleccionada y usa
+        hoy como fecha actual y como última fecha permitida.
+        """
+        today = self.today or date.today()
+        self.date_picker.value = self.selected_date
+        self.date_picker.current_date = today
+        self.date_picker.last_date = today
+        self.page.show_dialog(self.date_picker)
+
+    def handle_date_change(self, event=None) -> None:
+        """Copiar la fecha elegida al campo sin cerrar el formulario.
+
+        RF-5.4 y RF-5.5: solo la confirmación en el calendario actualiza el
+        campo; cancelar deja intacto el valor anterior.
+        """
+        value = self.date_picker.value
+        if value is None:
+            return
+        self.selected_date = (
+            value.date() if isinstance(value, datetime) else value
+        )
+        self.date_field.value = self.selected_date.strftime("%d/%m/%Y")
+        if self.dialog.open:
+            self.page.update()
+
     def close(self, event=None) -> None:
-        """Cerrar el diálogo sin crear nada."""
+        """Cerrar el diálogo sin crear ni modificar nada.
+
+        RF-2.10: en edición, cancelar deja intactos los datos del hábito.
+        """
+        self.editing_habit = None
         self.page.pop_dialog()
 
     def submit(self, event=None) -> None:
-        """Validar y guardar el hábito.
+        """Validar y guardar la creación o la edición.
 
         Si la validación falla, muestra el mensaje y mantiene el diálogo
-        abierto (RF-2.2, RF-2.3, RF-2.10). Si tiene éxito, persiste el hábito,
-        cierra el diálogo y notifica el resultado (RF-2.7, RF-2.9).
+        abierto (RF-2.3, RF-2.4). Si tiene éxito, persiste los cambios, cierra
+        el diálogo y notifica el resultado (RF-2.9); en edición conserva el ID
+        del hábito y sus registros (RF-2.12).
         """
         data = HabitFormData(
             name=self.name_field.value or "",
             start_date=self.date_field.value or "",
             icon=self.icon_dropdown.value,
         )
+        habit = self.editing_habit
 
         try:
-            result = create_habit_from_form(
-                data,
-                db_path=self.db_path,
-                today=self.today,
-            )
+            if habit is None:
+                result = create_habit_from_form(
+                    data,
+                    db_path=self.db_path,
+                    today=self.today,
+                )
+            else:
+                result = update_habit_from_form(
+                    habit,
+                    data,
+                    db_path=self.db_path,
+                    today=self.today,
+                )
         except ValueError as exc:
             self._show_error(str(exc))
             return
 
         self._show_error("")
         self.page.pop_dialog()
-        if self.on_saved is not None:
-            self.on_saved(result)
+
+        if habit is None:
+            if self.on_saved is not None:
+                self.on_saved(result)
+            return
+
+        self.editing_habit = None
+        if self.on_updated is not None:
+            self.on_updated(result)
 
     def _show_error(self, message: str) -> None:
         """Mostrar u ocultar el mensaje de error sin cerrar el diálogo."""

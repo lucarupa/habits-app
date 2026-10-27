@@ -1,5 +1,6 @@
 # spec: 002-ui-redesign
-"""Tests del diálogo modal de creación — Tareas 4.1 a 4.3.
+# spec: 003-edit-delete-habits
+"""Tests del diálogo modal de creación y edición — Tareas 4.1 a 4.4.
 
 Se ejecutan con el intérprete del proyecto (`.venv`), que tiene Flet instalado.
 Con un Python sin Flet el módulo se omite para no romper la suite pura.
@@ -7,7 +8,7 @@ Con un Python sin Flet el módulo se omite para no romper la suite pura.
 
 import os
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -16,7 +17,7 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import HabitFormDialog
-from habits.core import DEFAULT_ICON
+from habits.core import DEFAULT_ICON, Habit
 from habits.habit_form import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,
@@ -24,9 +25,19 @@ from habits.habit_form import (
     NAME_REQUIRED_ERROR,
     NAME_TOO_LONG_ERROR,
 )
-from habits.storage import get_habit_db, init_db, list_all_habits_db
+from habits.storage import (
+    create_habit_db,
+    get_habit_db,
+    init_db,
+    list_all_habits_db,
+)
 
 TODAY = date(2024, 10, 24)
+
+
+def as_date(value: date | datetime) -> date:
+    """Normalizar un valor de Flet a `date` para compararlo con TODAY."""
+    return value.date() if isinstance(value, datetime) else value
 
 
 class FakeWindow:
@@ -74,7 +85,7 @@ class FakePage:
 
 
 class TestHabitFormDialog:
-    """Tests del diálogo modal — T4.1, T4.2, T4.3."""
+    """Tests del diálogo modal — T4.1, T4.2, T4.3 y T4.4."""
 
     def setup_method(self):
         self.temp_dir = tempfile.mkdtemp()
@@ -86,13 +97,26 @@ class TestHabitFormDialog:
         if os.path.exists(self.db_path):
             os.remove(self.db_path)
 
-    def make_dialog(self, on_saved=None):
+    def make_dialog(self, on_saved=None, on_updated=None):
         return HabitFormDialog(
             self.page,
             on_saved=on_saved,
+            on_updated=on_updated,
             db_path=self.db_path,
             today=TODAY,
         )
+
+    def create_habit(
+        self,
+        name: str = "Leer",
+        start_date: date = date(2024, 9, 1),
+        icon: str = "book",
+    ) -> Habit:
+        """Insertar un hábito en la base de datos temporal y devolverlo."""
+        habit_id = create_habit_db(
+            name, start_date.isoformat(), icon, self.db_path
+        )
+        return Habit(habit_id, name, start_date, icon)
 
     def test_open_shows_dialog_with_all_fields(self):
         """RF-2.1: El modal tiene nombre, fecha opcional e icono."""
@@ -103,7 +127,7 @@ class TestHabitFormDialog:
         assert dialog.dialog.open is True
         assert self.page.open_dialogs == [dialog.dialog]
         assert dialog.name_field.value == ""
-        assert dialog.date_field.value == ""
+        assert dialog.date_field.value == TODAY.strftime("%d/%m/%Y")
         assert dialog.icon_dropdown.value == DEFAULT_ICON
         assert dialog.error_text.visible is False
 
@@ -130,10 +154,159 @@ class TestHabitFormDialog:
         dialog.open()
 
         assert dialog.name_field.value == ""
-        assert dialog.date_field.value == ""
+        assert dialog.date_field.value == TODAY.strftime("%d/%m/%Y")
         assert dialog.icon_dropdown.value == DEFAULT_ICON
         assert dialog.error_text.value == ""
         assert dialog.error_text.visible is False
+
+    def test_open_create_prefills_today_and_read_only_date(self):
+        """RF-5.1, RF-5.8: El campo muestra hoy y no se puede escribir."""
+        dialog = self.make_dialog()
+
+        dialog.open()
+
+        assert dialog.date_field.value == TODAY.strftime("%d/%m/%Y")
+        assert dialog.date_field.read_only is True
+        assert as_date(dialog.date_picker.value) == TODAY
+
+    def test_clicking_date_opens_calendar_with_future_blocked(self):
+        """RF-5.3, RF-5.6: Pulsar la fecha abre el calendario sin futuro."""
+        dialog = self.make_dialog()
+        dialog.open()
+
+        dialog.date_field.on_click(None)
+
+        picker = dialog.date_picker
+        assert picker.open is True
+        assert self.page.open_dialogs[-1] is picker
+        assert as_date(picker.current_date) == TODAY
+        assert as_date(picker.last_date) == TODAY
+        assert as_date(picker.value) == TODAY
+        assert picker.entry_mode == ft.DatePickerEntryMode.CALENDAR_ONLY
+        assert dialog.dialog.open is True
+
+    def test_selecting_date_updates_field_and_keeps_dialog_open(self):
+        """RF-5.4: Confirmar una fecha actualiza el campo sin cerrar el modal."""
+        dialog = self.make_dialog()
+        dialog.open()
+        dialog.date_field.on_click(None)
+        chosen = TODAY - timedelta(days=5)
+
+        dialog.date_picker.value = chosen
+        dialog.date_picker.on_change(None)
+
+        assert dialog.date_field.value == chosen.strftime("%d/%m/%Y")
+        assert dialog.dialog.open is True
+        assert self.page.open_dialogs[0] is dialog.dialog
+
+    def test_canceling_calendar_keeps_previous_date(self):
+        """RF-5.5: Cancelar el calendario deja la fecha anterior intacta."""
+        dialog = self.make_dialog()
+        dialog.open()
+        dialog.date_field.on_click(None)
+        # El usuario toca otro día, pero cierra sin confirmar: no hay on_change.
+        dialog.date_picker.value = TODAY - timedelta(days=2)
+
+        assert dialog.date_field.value == TODAY.strftime("%d/%m/%Y")
+        assert dialog.dialog.open is True
+
+    def test_calendar_uses_spanish_locale_and_week_start(self):
+        """RF-5.7: El calendario usa español (semana de lunes a domingo)."""
+        dialog = self.make_dialog()
+        dialog.open()
+
+        picker = dialog.date_picker
+        assert isinstance(picker, ft.DatePicker)
+        assert picker.locale is not None
+        assert picker.locale.language_code == "es"
+        assert picker.locale.country_code == "ES"
+
+    def test_open_edit_prefills_current_habit_values(self):
+        """RF-2.2, RF-5.2: Nombre, icono y fecha actual precargados."""
+        habit = self.create_habit(
+            name="Leer", start_date=date(2024, 9, 1), icon="science"
+        )
+        dialog = self.make_dialog()
+
+        dialog.open_edit(habit)
+
+        assert dialog.dialog.open is True
+        assert dialog.dialog.title.value == "Editar hábito"
+        assert dialog.name_field.value == "Leer"
+        assert dialog.icon_dropdown.value == "science"
+        assert dialog.date_field.value == "01/09/2024"
+        assert as_date(dialog.date_picker.value) == date(2024, 9, 1)
+
+    def test_edit_submit_persists_and_notifies(self):
+        """RF-2.9: Guardar una edición persiste, cierra y notifica el resultado."""
+        habit = self.create_habit()
+        updated = []
+        dialog = self.make_dialog(on_updated=updated.append)
+        dialog.open_edit(habit)
+        dialog.name_field.value = "  Leer más  "
+        dialog.date_field.value = "01/10/2024"
+        dialog.icon_dropdown.value = "code"
+
+        dialog.submit()
+
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []
+        assert len(updated) == 1
+
+        result = updated[0]
+        assert result.habit_id == habit.id
+        assert result.name == "Leer más"
+        assert result.start_date == date(2024, 10, 1)
+        assert result.icon == "code"
+
+        row = get_habit_db(habit.id, self.db_path)
+        assert row is not None
+        assert row.name == "Leer más"
+        assert row.start_date == "2024-10-01"
+        assert row.icon == "code"
+
+    def test_edit_cancel_does_not_change_the_habit(self):
+        """RF-2.10: Cancelar deja intactos los datos del hábito."""
+        habit = self.create_habit()
+        dialog = self.make_dialog(on_updated=lambda result: None)
+        dialog.open_edit(habit)
+        dialog.name_field.value = "Cambiado"
+        dialog.date_field.value = "01/08/2024"
+        dialog.icon_dropdown.value = "art"
+
+        dialog.close()
+
+        assert dialog.dialog.open is False
+        assert self.page.open_dialogs == []
+
+        row = get_habit_db(habit.id, self.db_path)
+        assert row is not None
+        assert row.name == "Leer"
+        assert row.start_date == "2024-09-01"
+        assert row.icon == "book"
+
+    def test_edit_validation_error_keeps_dialog_open(self):
+        """RF-2.3, RF-2.4: Los errores mantienen el modal abierto sin persistir."""
+        habit = self.create_habit()
+        dialog = self.make_dialog(on_updated=lambda result: None)
+        dialog.open_edit(habit)
+
+        dialog.name_field.value = "   "
+        dialog.submit()
+
+        assert dialog.dialog.open is True
+        assert dialog.error_text.visible is True
+        assert dialog.error_text.value == NAME_REQUIRED_ERROR
+
+        dialog.name_field.value = "a" * 61
+        dialog.submit()
+
+        assert dialog.dialog.open is True
+        assert dialog.error_text.value == NAME_TOO_LONG_ERROR
+
+        row = get_habit_db(habit.id, self.db_path)
+        assert row is not None
+        assert row.name == "Leer"
 
     def test_empty_name_keeps_dialog_open_and_does_not_persist(self):
         """RF-2.2: Nombre vacío muestra error y no cierra el diálogo."""

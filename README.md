@@ -4,7 +4,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 
 ## Funcionalidades del MVP
 
-- **Crear un hábito** con nombre (máx. 60 caracteres) y fecha de inicio opcional.
+- **Crear un hábito** con nombre (máx. 60 caracteres) y fecha de inicio precargada con hoy, elegible en un calendario en español que bloquea los días futuros.
 - **Marcar un hábito como completado** para el día actual, con advertencia si ya fue registrado.
 - **Registrar hoy** desde el panel de detalle con la fecha actual y confirmación inmediata; los duplicados se rechazan.
 - **Listar hábitos** ordenados por racha de días consecutivos descendente, con desempate alfabético.
@@ -17,7 +17,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 179 pruebas puras + 41 con Flet (220 en `.venv`)
+- **pytest** — 179 pruebas puras + 50 con Flet (229 en `.venv`)
 
 ## Estado de implementación
 
@@ -28,17 +28,18 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 | Fase 1 | Dominio de edición (`core.py`) | 2 | ✅ Completada |
 | Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ✅ Completada |
 | Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ✅ Completada |
-| Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ⬜ Pendiente |
+| Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ✅ Completada |
 | Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ⬜ Pendiente |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ⬜ Pendiente |
 | Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **7 / 21 completadas** |
+| **Total** | | **21** | **11 / 21 completadas** |
 
-Las Fases 1, 2 y 3 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
-dominio, `storage.py` persiste la edición y el borrado transaccional, y `habit_form.py` valida
-la edición, conserva fecha e icono actuales y rechaza fechas futuras. La interfaz aún no ofrece
-edición, eliminación ni calendario de fecha. El detalle de cada tarea, con sus RF y criterios
-“Hecho cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
+Las Fases 1 a 4 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
+dominio, `storage.py` persiste la edición y el borrado transaccional, `habit_form.py` valida la
+edición, y el diálogo modal ya distingue creación y edición con un campo de fecha de solo lectura
+y calendario en español que bloquea los días futuros. La interfaz aún no ofrece las acciones de
+editar y eliminar en el detalle ni su integración en `main`. El detalle de cada tarea, con sus RF
+y criterios “Hecho cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
@@ -112,7 +113,7 @@ En `habits/app.py`:
 
 - `AppState.detail_header()` — devuelve el icono, nombre, subtítulo “Hábito de estudio” y fecha de inicio en dd/mm/aaaa del hábito seleccionado.
 - `DetailHeader` — datos puros del encabezado, sin dependencia de Flet.
-- `HabitDetailHeader` — control Flet que muestra una caja con el icono, el nombre, el subtítulo y la línea “Inicio: dd/mm/aaaa”.
+- `HabitDetailHeader` — control Flet que muestra una caja con el icono, el nombre, el subtítulo, la línea “Inicio: dd/mm/aaaa” y las acciones “Editar” y “Eliminar”; solo aparecen con un hábito seleccionado y notifican su ID mediante `on_edit` y `on_delete`.
 - `format_date_label(fecha)` — formatea todas las fechas visibles como dd/mm/aaaa (RF-7.4).
 
 ### Estado vacío implementado
@@ -139,7 +140,7 @@ En `habits/app.py`:
   - `UpdateHabitResult` — resultado de una edición con su ID y los datos guardados.
   - `validate_habit_update(habit, data, today)` — reutiliza las reglas de nombre, conserva la fecha y el icono actuales y rechaza fechas futuras.
   - `update_habit_from_form(habit, data, db_path, today)` — valida la edición, delega en `update_habit` y `update_habit_db` y no modifica los registros diarios.
-- `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, fecha opcional e icono; ante un error permanece abierto y al guardar se cierra.
+- `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, campo de fecha de solo lectura y selector de icono. En creación precarga hoy; en edición precarga nombre, icono y fecha del hábito y cambia el título a “Editar hábito”. El calendario usa español, bloquea los días futuros y solo actualiza la fecha al confirmar. Ante un error permanece abierto y al guardar se cierra y notifica el resultado.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
 
@@ -309,7 +310,7 @@ tests/
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
 ├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
-├── test_habit_dialog.py # Tests del diálogo Flet (10 tests, requiere .venv)
+├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
 ├── test_detail_widgets.py # Tests de tarjetas y heatmap Flet (12 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
