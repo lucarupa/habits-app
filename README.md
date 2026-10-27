@@ -19,15 +19,15 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 207 pruebas puras + 65 con Flet (272 en `.venv`)
+- **pytest** — 215 pruebas puras + 65 con Flet (280 en `.venv`)
 
 ## Estado de implementación
 
 Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
 
-La Fase 1 (detección de huecos recuperables y estadísticas con días recuperados en `core.py`)
-está implementada. Las fases 2 a 6 siguen pendientes; el detalle está en
-`specs/004-duplicate-warning-streak-recovery/tasks.md`.
+Las fases 1 y 2 (detección de huecos recuperables, estadísticas con días recuperados y
+persistencia de `recovered` en `core.py` y `storage.py`) están implementadas. Las fases 3 a 6
+siguen pendientes; el detalle está en `specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
 
@@ -91,15 +91,17 @@ Las siguientes funciones en `habits/core.py` están completas y testeadas:
 
 Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 
-- `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen, y migra bases antiguas añadiendo la columna `icon` (valor por defecto `book`).
+- `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen, y migra bases antiguas añadiendo las columnas `icon` (valor por defecto `book`) y `recovered` (valor por defecto `0`).
 - `create_habit_db(name, start_date, icon, db_path)` — inserta un hábito con su icono y retorna su ID.
 - `get_habit_db(habit_id, db_path)` — lee un hábito por ID, incluido su icono.
 - `update_habit_db(habit_id, name, start_date, icon, db_path)` — actualiza nombre, fecha e icono de una fila existente; lanza error si el hábito no existe.
 - `delete_habit_db(habit_id, db_path)` — borra el hábito y sus registros en una transacción; lanza error si el hábito no existe.
 - `mark_completed_db(habit_id, completed_date, db_path)` — registra un completado.
+- `mark_recovered_days_db(habit_id, dates, db_path)` — marca días como recuperados en una transacción con `INSERT OR IGNORE`, conserva los registros normales y falla sin dejar filas parciales si el hábito no existe.
 - `is_completed_today_db(habit_id, today, db_path)` — verifica si un hábito ya está marcado hoy.
 - `list_all_habits_db(db_path)` — obtiene todos los hábitos registrados, incluidos sus iconos.
 - `get_completions_db(habit_id, db_path)` — obtiene las fechas de completado de un hábito.
+- `get_recovered_dates_db(habit_id, db_path)` — obtiene solo las fechas recuperadas, ordenadas.
 
 ### Cargador de estado implementado
 
@@ -166,7 +168,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 207 pruebas puras + 65 con Flet (272 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 215 pruebas puras + 65 con Flet (280 en `.venv`).
 
 ## Iconos
 
@@ -328,7 +330,7 @@ habits/
 tests/
 ├── test_core.py     # Tests de lógica de dominio (52 tests)
 ├── test_recovery.py # Tests de huecos recuperables y días recuperados (16 tests)
-├── test_storage.py  # Tests de persistencia (36 tests)
+├── test_storage.py  # Tests de persistencia (44 tests)
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (41 tests)

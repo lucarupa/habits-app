@@ -27,25 +27,25 @@
 
 ## Fase 2: Persistencia de días recuperados (`storage.py`)
 
-- [ ] **Tarea 2.1:** Escribir los tests del esquema y de la migración
+- [x] **Tarea 2.1:** Escribir los tests del esquema y de la migración
   - **RF:** RF-2.8, RF-2.15, RF-2.17
   - **Hecho cuando:** Los tests comprueban que una base nueva tiene `recovered` con valor 0 por
     defecto, que una base antigua recibe la columna sin perder registros y que la migración es
     idempotente; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 2.2:** Implementar la columna `recovered` y la migración en `init_db`
+- [x] **Tarea 2.2:** Implementar la columna `recovered` y la migración en `init_db`
   - **RF:** RF-2.8, RF-2.15, RF-2.17
   - **Hecho cuando:** `init_db` crea la columna en bases nuevas y la añade a las existentes
     mediante una comprobación de columnas, y los tests de la tarea 2.1 pasan.
 
-- [ ] **Tarea 2.3:** Escribir los tests de `mark_recovered_days_db` y `get_recovered_dates_db`
+- [x] **Tarea 2.3:** Escribir los tests de `mark_recovered_days_db` y `get_recovered_dates_db`
   - **RF:** RF-2.8, RF-2.15, RF-2.16, RF-2.17
   - **Hecho cuando:** Los tests cubren la inserción con `recovered = 1`, la conservación de un
     registro normal previo, el error con un hábito inexistente sin filas parciales, la consulta
     ordenada de recuperados y el borrado del hábito con sus recuperados; la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 2.4:** Implementar la escritura y consulta de días recuperados
+- [x] **Tarea 2.4:** Implementar la escritura y consulta de días recuperados
   - **RF:** RF-2.8, RF-2.15, RF-2.16, RF-2.17
   - **Hecho cuando:** `mark_recovered_days_db` inserta en una transacción con `INSERT OR IGNORE`,
     `get_recovered_dates_db` devuelve solo las fechas recuperadas y los tests de la tarea 2.3

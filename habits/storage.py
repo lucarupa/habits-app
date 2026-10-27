@@ -1,6 +1,7 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
 # spec: 003-edit-delete-habits
+# spec: 004-duplicate-warning-streak-recovery
 """Persistencia SQLite: CRUD de hábitos y registros diarios."""
 
 from dataclasses import dataclass
@@ -31,7 +32,9 @@ def init_db(db_path: str = "data/habits.db") -> None:
 
     Crea las tablas `habits` y `completions` según el modelo de datos del plan.
     Si la tabla `habits` ya existe sin la columna `icon`, la añade con el valor
-    por defecto `book` sin modificar los datos existentes. La función es
+    por defecto `book` sin modificar los datos existentes. Si la tabla
+    `completions` ya existe sin la columna `recovered`, la añade con el valor
+    por defecto 0 para conservar los registros como normales. La función es
     idempotenta: llamarla varias veces no causa errores ni duplica columnas.
 
     Args:
@@ -59,6 +62,7 @@ def init_db(db_path: str = "data/habits.db") -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             habit_id INTEGER NOT NULL,
             completed_date TEXT NOT NULL,
+            recovered INTEGER NOT NULL DEFAULT 0,
             UNIQUE(habit_id, completed_date),
             FOREIGN KEY (habit_id) REFERENCES habits(id)
         )
@@ -69,6 +73,15 @@ def init_db(db_path: str = "data/habits.db") -> None:
     if "icon" not in columns:
         cursor.execute(
             "ALTER TABLE habits ADD COLUMN icon TEXT NOT NULL DEFAULT 'book'"
+        )
+
+    completion_columns = {
+        row[1] for row in cursor.execute("PRAGMA table_info(completions)")
+    }
+    if "recovered" not in completion_columns:
+        cursor.execute(
+            "ALTER TABLE completions "
+            "ADD COLUMN recovered INTEGER NOT NULL DEFAULT 0"
         )
 
     conn.commit()
@@ -232,6 +245,49 @@ def mark_completed_db(
     conn.close()
 
 
+def mark_recovered_days_db(
+    habit_id: int,
+    dates: list[str] | tuple[str, ...] | set[str],
+    db_path: str = "data/habits.db",
+) -> None:
+    """Marcar varios días como recuperados para conservar la racha.
+
+    Inserta las fechas en una única transacción con `INSERT OR IGNORE`, de
+    modo que un registro normal ya existente para esa fecha se conserva sin
+    cambios. Si el hábito no existe, revierte la transacción y no deja días
+    recuperados parciales (RF-2.16 y RF-2.17).
+
+    Args:
+        habit_id: Identificador único del hábito.
+        dates: Fechas en formato YYYY-MM-DD que se marcan como recuperadas.
+        db_path: Ruta al archivo de base de datos SQLite.
+
+    Raises:
+        ValueError: Si no existe un hábito con ese ID.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("BEGIN")
+        exists = conn.execute(
+            "SELECT 1 FROM habits WHERE id = ?",
+            (habit_id,),
+        ).fetchone()
+        if exists is None:
+            raise ValueError("El hábito no existe.")
+
+        conn.executemany(
+            "INSERT OR IGNORE INTO completions "
+            "(habit_id, completed_date, recovered) VALUES (?, ?, 1)",
+            [(habit_id, value) for value in dates],
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def is_completed_today_db(
     habit_id: int, today: str, db_path: str = "data/habits.db"
 ) -> bool:
@@ -304,6 +360,32 @@ def get_completions_db(
     cursor = conn.execute(
         "SELECT completed_date FROM completions WHERE habit_id = ? ORDER BY completed_date",
         (habit_id,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row[0] for row in rows]
+
+
+def get_recovered_dates_db(
+    habit_id: int, db_path: str = "data/habits.db"
+) -> list[str]:
+    """Obtener las fechas recuperadas de un hábito.
+
+    Args:
+        habit_id: Identificador único del hábito.
+        db_path: Ruta al archivo de base de datos SQLite.
+
+    Returns:
+        Lista de fechas recuperadas en formato YYYY-MM-DD, ordenadas de forma
+        ascendente.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.execute(
+        "SELECT completed_date FROM completions "
+        "WHERE habit_id = ? AND recovered = 1 "
+        "ORDER BY completed_date",
+        (habit_id,),
     )
     rows = cursor.fetchall()
     conn.close()

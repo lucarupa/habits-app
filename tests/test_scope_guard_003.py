@@ -152,6 +152,7 @@ def test_database_schema_has_no_undo_archive_or_history_tables():
         "id",
         "habit_id",
         "completed_date",
+        "recovered",
     }
 
 

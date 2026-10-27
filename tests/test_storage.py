@@ -1,6 +1,7 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
 # spec: 003-edit-delete-habits
+# spec: 004-duplicate-warning-streak-recovery
 """Tests para la capa de persistencia SQLite — Tarea 4.1, RFN-3."""
 
 import os
@@ -215,6 +216,131 @@ class TestInitDb:
 
         assert columns.count("icon") == 1
         assert row == ("Leer", "2024-01-01", "book")
+        assert total == 1
+
+
+class TestInitDbRecoveredColumn:
+    """Esquema y migración de la columna recovered — Tarea 2.1.
+
+    RF-2.8, RF-2.15 y RF-2.17: una base nueva marca los registros normales con
+    `recovered = 0`, una base antigua recibe la columna conservando sus filas y
+    la migración se puede ejecutar varias veces sin duplicar columnas.
+    """
+
+    def setup_method(self):
+        """Crear un directorio temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _create_legacy_db(self) -> None:
+        """Crear una base con el esquema anterior, sin columna recovered."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            """
+            CREATE TABLE habits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                icon TEXT NOT NULL DEFAULT 'book'
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE completions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                habit_id INTEGER NOT NULL,
+                completed_date TEXT NOT NULL,
+                UNIQUE(habit_id, completed_date),
+                FOREIGN KEY (habit_id) REFERENCES habits(id)
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO habits (name, start_date) VALUES (?, ?)",
+            ("Leer", "2026-10-20"),
+        )
+        conn.execute(
+            "INSERT INTO completions (habit_id, completed_date) VALUES (?, ?)",
+            (1, "2026-10-25"),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_init_db_creates_recovered_column_with_default_zero(self):
+        """RF-2.8, RF-2.17: una base nueva guarda los normales con recovered 0."""
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            columns = {
+                row[1]: row
+                for row in conn.execute("PRAGMA table_info(completions)")
+            }
+            assert "recovered" in columns
+            _, _, column_type, not_null, default, _ = columns["recovered"]
+            assert column_type == "INTEGER"
+            assert not_null == 1
+            assert default == "0"
+
+            conn.execute(
+                "INSERT INTO habits (name, start_date) VALUES (?, ?)",
+                ("Leer", "2026-10-20"),
+            )
+            conn.execute(
+                "INSERT INTO completions (habit_id, completed_date) VALUES (?, ?)",
+                (1, "2026-10-26"),
+            )
+            conn.commit()
+            recovered = conn.execute(
+                "SELECT recovered FROM completions WHERE id = 1"
+            ).fetchone()[0]
+
+        assert recovered == 0
+
+    def test_init_db_migrates_existing_completions_without_recovered(self):
+        """RF-2.15, RF-2.17: la base antigua recibe recovered sin perder filas."""
+        self._create_legacy_db()
+
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            habit = conn.execute(
+                "SELECT name, start_date FROM habits WHERE id = 1"
+            ).fetchone()
+            completion = conn.execute(
+                "SELECT habit_id, completed_date, recovered "
+                "FROM completions WHERE id = 1"
+            ).fetchone()
+
+        assert habit == ("Leer", "2026-10-20")
+        assert completion == (1, "2026-10-25", 0)
+
+    def test_init_db_recovered_migration_is_idempotent(self):
+        """RF-2.15: migrar dos veces no duplica la columna ni altera las filas."""
+        self._create_legacy_db()
+
+        init_db(self.db_path)
+        init_db(self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            columns = [
+                row[1] for row in conn.execute("PRAGMA table_info(completions)")
+            ]
+            completion = conn.execute(
+                "SELECT habit_id, completed_date, recovered "
+                "FROM completions WHERE id = 1"
+            ).fetchone()
+            total = conn.execute(
+                "SELECT COUNT(*) FROM completions"
+            ).fetchone()[0]
+
+        assert columns.count("recovered") == 1
+        assert completion == (1, "2026-10-25", 0)
         assert total == 1
 
 
@@ -484,6 +610,137 @@ class TestMarkCompletedDb:
 
         assert is_completed_today_db(habit_id_1, today, db_path=self.db_path) is True
         assert is_completed_today_db(habit_id_2, today, db_path=self.db_path) is True
+
+
+class TestRecoveredDaysDb:
+    """Tests de días recuperados — Tarea 2.3.
+
+    RF-2.8, RF-2.15, RF-2.16 y RF-2.17: marca días con `recovered = 1`,
+    conserva los registros normales, falla sin dejar filas parciales si el
+    hábito no existe, devuelve las fechas recuperadas ordenadas y borra los
+    recuperados junto con el hábito.
+    """
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def test_mark_recovered_days_db_persists_flagged_rows(self):
+        """RF-2.8: las fechas se guardan con recovered = 1."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-20", db_path=self.db_path
+        )
+
+        storage.mark_recovered_days_db(
+            habit_id,
+            ["2026-10-24", "2026-10-25"],
+            self.db_path,
+        )
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            rows = conn.execute(
+                "SELECT completed_date, recovered FROM completions "
+                "WHERE habit_id = ? ORDER BY completed_date",
+                (habit_id,),
+            ).fetchall()
+
+        assert rows == [("2026-10-24", 1), ("2026-10-25", 1)]
+        assert storage.get_recovered_dates_db(
+            habit_id, self.db_path
+        ) == ["2026-10-24", "2026-10-25"]
+        assert get_completions_db(habit_id, self.db_path) == [
+            "2026-10-24",
+            "2026-10-25",
+        ]
+
+    def test_mark_recovered_days_db_keeps_existing_normal_record(self):
+        """RF-2.17: un registro normal previo no se convierte en recuperado."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-20", db_path=self.db_path
+        )
+        mark_completed_db(habit_id, "2026-10-25", db_path=self.db_path)
+
+        storage.mark_recovered_days_db(
+            habit_id,
+            ["2026-10-24", "2026-10-25"],
+            self.db_path,
+        )
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            rows = conn.execute(
+                "SELECT completed_date, recovered FROM completions "
+                "WHERE habit_id = ? ORDER BY completed_date",
+                (habit_id,),
+            ).fetchall()
+
+        assert rows == [("2026-10-24", 1), ("2026-10-25", 0)]
+        assert storage.get_recovered_dates_db(
+            habit_id, self.db_path
+        ) == ["2026-10-24"]
+
+    def test_mark_recovered_days_db_raises_for_unknown_habit(self):
+        """RF-2.16: un hábito inexistente no deja filas parciales."""
+        with pytest.raises(ValueError, match="El hábito no existe."):
+            storage.mark_recovered_days_db(
+                999,
+                ["2026-10-24", "2026-10-25"],
+                self.db_path,
+            )
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM completions"
+            ).fetchone()[0]
+
+        assert total == 0
+
+    def test_get_recovered_dates_db_returns_only_recovered_sorted(self):
+        """RF-2.8: solo devuelve las fechas recuperadas, ordenadas."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-20", db_path=self.db_path
+        )
+        mark_completed_db(habit_id, "2026-10-20", db_path=self.db_path)
+
+        storage.mark_recovered_days_db(
+            habit_id,
+            ["2026-10-25", "2026-10-23"],
+            self.db_path,
+        )
+
+        assert storage.get_recovered_dates_db(
+            habit_id, self.db_path
+        ) == ["2026-10-23", "2026-10-25"]
+
+    def test_delete_habit_db_removes_recovered_days(self):
+        """RF-2.15: el borrado no deja registros recuperados huérfanos."""
+        habit_id = create_habit_db(
+            "Estudiar", "2026-10-20", db_path=self.db_path
+        )
+        storage.mark_recovered_days_db(
+            habit_id,
+            ["2026-10-24", "2026-10-25"],
+            self.db_path,
+        )
+
+        storage.delete_habit_db(habit_id, self.db_path)
+
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            total = conn.execute(
+                "SELECT COUNT(*) FROM completions WHERE habit_id = ?",
+                (habit_id,),
+            ).fetchone()[0]
+
+        assert total == 0
+        assert storage.get_recovered_dates_db(
+            habit_id, self.db_path
+        ) == []
 
 
 class TestListAllHabitsDb:
