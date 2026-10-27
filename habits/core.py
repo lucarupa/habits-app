@@ -1,6 +1,7 @@
 # spec: 001-habits-mvp
 # spec: 002-ui-redesign
 # spec: 003-edit-delete-habits
+# spec: 004-duplicate-warning-streak-recovery
 """Lógica de dominio: modelos y cálculo de racha."""
 
 from dataclasses import dataclass
@@ -57,6 +58,7 @@ class HeatmapDay:
         is_future: Indica si la fecha es posterior a hoy.
         weekday: Día de la semana (0 = lunes, 6 = domingo).
         week: Índice de la semana dentro del heatmap (0–4).
+        recovered: Indica si el día se recuperó para conservar la racha.
     """
 
     date: date
@@ -65,6 +67,19 @@ class HeatmapDay:
     is_future: bool
     weekday: int
     week: int
+    recovered: bool = False
+
+
+@dataclass(frozen=True)
+class RecoverableGap:
+    """Días consecutivos sin registro que se pueden recuperar.
+
+    Atributos:
+        dates: Fechas del hueco, en orden cronológico. Siempre contiene uno
+            o dos días y nunca incluye la fecha actual.
+    """
+
+    dates: tuple[date, ...]
 
 
 def create_habit(
@@ -264,27 +279,94 @@ def calculate_best_streak(completed_dates: set[date]) -> int:
     return max(best, current)
 
 
-def count_registered_days(completed_dates: set[date]) -> int:
-    """Contar las fechas distintas con al menos un registro.
+def count_registered_days(
+    completed_dates: set[date],
+    recovered_dates: set[date] | frozenset[date] = frozenset(),
+) -> int:
+    """Contar las fechas distintas con un registro normal.
+
+    Los días recuperados cuentan para la racha, pero no para “Días
+    registrados” (RF-2.10).
 
     Args:
-        completed_dates: Conjunto de fechas completadas para un hábito.
+        completed_dates: Conjunto de fechas completadas, incluidas las
+            recuperadas.
+        recovered_dates: Subconjunto de fechas recuperadas que no deben
+            contarse como registros normales.
 
     Returns:
-        La cantidad de fechas distintas registradas.
+        La cantidad de fechas registradas que no son recuperadas.
     """
-    return len(set(completed_dates))
+    return len(set(completed_dates) - set(recovered_dates))
 
 
-def get_habit_stats(completed_dates: set[date], today: date) -> HabitStats:
+def find_recoverable_gap(
+    completed_dates: set[date],
+    today: date,
+) -> RecoverableGap | None:
+    """Encontrar el hueco más reciente que se puede recuperar.
+
+    Un hueco recuperable son uno o dos días consecutivos sin registro. Solo
+    se considera el hueco más reciente: primero el que separa el último
+    registro de hoy (sin incluir hoy) y, si no existe, el que separa los dos
+    registros más recientes. Un hueco de tres o más días no es recuperable.
+
+    Args:
+        completed_dates: Fechas con registro normal o recuperado.
+        today: Fecha actual. Nunca forma parte del hueco.
+
+    Returns:
+        Un `RecoverableGap` con las fechas del hueco, o None si no hay un
+        hueco recuperable.
+    """
+    if not completed_dates:
+        return None
+
+    dates = sorted(completed_dates)
+    last_date = dates[-1]
+
+    tail_length = max(0, (today - last_date).days - 1)
+    if tail_length >= 3:
+        return None
+    if tail_length in (1, 2):
+        return RecoverableGap(
+            tuple(
+                last_date + timedelta(days=offset)
+                for offset in range(1, tail_length + 1)
+            )
+        )
+
+    for previous, current_date in reversed(list(zip(dates, dates[1:]))):
+        gap_length = (current_date - previous).days - 1
+        if gap_length >= 3:
+            return None
+        if gap_length in (1, 2):
+            return RecoverableGap(
+                tuple(
+                    previous + timedelta(days=offset)
+                    for offset in range(1, gap_length + 1)
+                )
+            )
+
+    return None
+
+
+def get_habit_stats(
+    completed_dates: set[date],
+    today: date,
+    recovered_dates: set[date] | frozenset[date] = frozenset(),
+) -> HabitStats:
     """Obtener las estadísticas de un hábito.
 
     Reutiliza las funciones de racha actual, mejor racha y días registrados
-    para no duplicar la lógica de cálculo.
+    para no duplicar la lógica de cálculo. Las fechas recuperadas suman a las
+    rachas, pero no a los días registrados (RF-2.9 y RF-2.10).
 
     Args:
-        completed_dates: Conjunto de fechas completadas para un hábito.
+        completed_dates: Conjunto de fechas completadas, incluidas las
+            recuperadas.
         today: La fecha actual.
+        recovered_dates: Subconjunto de fechas recuperadas.
 
     Returns:
         Un objeto HabitStats con las tres estadísticas del hábito.
@@ -292,24 +374,32 @@ def get_habit_stats(completed_dates: set[date], today: date) -> HabitStats:
     return HabitStats(
         current_streak=calculate_streak(completed_dates, today),
         best_streak=calculate_best_streak(completed_dates),
-        registered_days=count_registered_days(completed_dates),
+        registered_days=count_registered_days(
+            completed_dates,
+            recovered_dates,
+        ),
     )
 
 
 def build_activity_heatmap(
     completed_dates: set[date],
     today: date,
+    recovered_dates: set[date] | frozenset[date] = frozenset(),
     weeks: int = 5,
 ) -> list[HeatmapDay]:
     """Construir las celdas del heatmap de actividad.
 
     La cuadrícula empieza en el lunes de la primera semana y termina en el
     domingo de la semana actual. Las celdas posteriores a hoy se marcan como
-    futuras.
+    futuras. Los días recuperados se marcan como completados y como
+    recuperados para que la interfaz los distinga (RF-2.11).
 
     Args:
-        completed_dates: Conjunto de fechas completadas para un hábito.
+        completed_dates: Conjunto de fechas completadas, incluidas las
+            recuperadas.
         today: La fecha actual.
+        recovered_dates: Subconjunto de fechas recuperadas que se marcan con
+            el estado recuperado.
         weeks: Cantidad de semanas calendario a mostrar (5 por defecto).
 
     Returns:
@@ -329,6 +419,7 @@ def build_activity_heatmap(
                 is_future=day > today,
                 weekday=day.weekday(),
                 week=offset // 7,
+                recovered=day in recovered_dates,
             )
         )
 

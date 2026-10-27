@@ -1,4 +1,5 @@
 # spec: 003-edit-delete-habits
+# spec: 004-duplicate-warning-streak-recovery
 from datetime import date, timedelta
 
 import pytest
@@ -541,6 +542,69 @@ class TestBuildActivityHeatmap:
         cells = build_activity_heatmap(set(), today)
 
         assert all(cell.completed is False for cell in cells)
+
+
+class TestStatsWithRecoveredDays:
+    """Tests de estadísticas y heatmap con días recuperados — Tarea 1.3.
+
+    Verifican que la racha actual y la mejor racha incluyen los recuperados
+    (RF-2.9), que "Días registrados" los excluye (RF-2.10) y que el heatmap
+    marca las celdas recuperadas (RF-2.11). La suite muestra los fallos
+    esperados porque las funciones aún no aceptan recovered_dates.
+    """
+
+    def test_stats_include_recovered_days_in_streaks(self):
+        """RF-2.9: Racha actual y mejor racha incluyen los días recuperados."""
+        today = TODAY
+        # Registros: hoy, ayer (normal), antesayer (recuperado), 4 días atrás (normal)
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+            today - timedelta(days=4),
+        }
+        recovered = {today - timedelta(days=2)}
+
+        stats = get_habit_stats(completed, today, recovered)
+
+        assert stats.current_streak == 3
+        assert stats.best_streak == 3
+
+    def test_registered_days_exclude_recovered_days(self):
+        """RF-2.10: "Días registrados" no cuenta los días recuperados."""
+        today = TODAY
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+            today - timedelta(days=3),
+        }
+        recovered = {today - timedelta(days=2), today - timedelta(days=3)}
+
+        stats = get_habit_stats(completed, today, recovered)
+
+        assert stats.registered_days == 2
+
+    def test_heatmap_marks_recovered_days(self):
+        """RF-2.11: La celda recuperada tiene completed=True y recovered=True."""
+        today = TODAY
+        completed = {
+            today,
+            today - timedelta(days=1),
+            today - timedelta(days=2),
+        }
+        recovered = {today - timedelta(days=1)}
+
+        cells = build_activity_heatmap(completed, today, recovered)
+        by_date = {cell.date: cell for cell in cells}
+
+        recovered_cell = by_date[today - timedelta(days=1)]
+        assert recovered_cell.completed is True
+        assert recovered_cell.recovered is True
+
+        normal_cell = by_date[today]
+        assert normal_cell.completed is True
+        assert normal_cell.recovered is False
 
 
 class TestListHabitsWithStreak:

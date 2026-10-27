@@ -19,11 +19,17 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 188 pruebas puras + 65 con Flet (253 en `.venv`)
+- **pytest** — 207 pruebas puras + 65 con Flet (272 en `.venv`)
 
 ## Estado de implementación
 
-Spec activa: **003 — Edición y eliminación de hábitos**.
+Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
+
+La Fase 1 (detección de huecos recuperables y estadísticas con días recuperados en `core.py`)
+está implementada. Las fases 2 a 6 siguen pendientes; el detalle está en
+`specs/004-duplicate-warning-streak-recovery/tasks.md`.
+
+### Spec 003 — completada
 
 | Fase | Descripción | Tareas | Estado |
 |------|-------------|:------:|--------|
@@ -75,9 +81,10 @@ Las siguientes funciones en `habits/core.py` están completas y testeadas:
 - `mark_completed(habit_id, completed_dates, today)` — marca un hábito como completado hoy.
 - `calculate_streak(completed_dates, today)` — calcula la racha de días consecutivos.
 - `calculate_best_streak(completed_dates)` — calcula la mejor racha histórica de días consecutivos.
-- `count_registered_days(completed_dates)` — cuenta las fechas distintas registradas.
-- `get_habit_stats(completed_dates, today)` — devuelve racha actual, mejor racha y días registrados.
-- `build_activity_heatmap(completed_dates, today, weeks=5)` — construye las celdas del heatmap de actividad.
+- `count_registered_days(completed_dates, recovered_dates=frozenset())` — cuenta las fechas distintas registradas, excluyendo los días recuperados.
+- `get_habit_stats(completed_dates, today, recovered_dates=frozenset())` — devuelve racha actual, mejor racha y días registrados; las rachas incluyen los recuperados.
+- `find_recoverable_gap(completed_dates, today)` — detecta el hueco más reciente de uno o dos días sin registro que se puede recuperar.
+- `build_activity_heatmap(completed_dates, today, recovered_dates=frozenset(), weeks=5)` — construye las celdas del heatmap y marca las recuperadas.
 - `list_habits_with_streak(habits, completions_by_habit, today)` — lista hábitos ordenados por racha.
 
 ### Persistencia SQLite implementada
@@ -159,7 +166,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, formulario, diálogos y flujos integrados: 188 pruebas puras + 65 con Flet (253 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 207 pruebas puras + 65 con Flet (272 en `.venv`).
 
 ## Iconos
 
@@ -319,7 +326,8 @@ habits/
 ├── theme.py         # Tema visual y dimensiones de ventana
 └── app.py           # Interfaz Flet: barra lateral, detalle, modal y registro
 tests/
-├── test_core.py     # Tests de lógica de dominio (49 tests)
+├── test_core.py     # Tests de lógica de dominio (52 tests)
+├── test_recovery.py # Tests de huecos recuperables y días recuperados (16 tests)
 ├── test_storage.py  # Tests de persistencia (36 tests)
 ├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (15 tests)
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)

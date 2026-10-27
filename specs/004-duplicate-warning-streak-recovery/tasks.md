@@ -2,24 +2,24 @@
 
 ## Fase 1: Detección del hueco recuperable (`core.py`)
 
-- [ ] **Tarea 1.1:** Escribir los tests de `find_recoverable_gap`
+- [x] **Tarea 1.1:** Escribir los tests de `find_recoverable_gap`
   - **RF:** RF-2.1, RF-2.2, RF-2.3, RF-2.18
   - **Hecho cuando:** Los tests cubren huecos de 1, 2 y 3 días entre registros, huecos de cola
     antes de hoy, hoy registrado, ausencia de registros y elección del hueco más reciente; la
     suite muestra los fallos esperados porque la función aún no existe.
 
-- [ ] **Tarea 1.2:** Implementar `RecoverableGap` y `find_recoverable_gap`
+- [x] **Tarea 1.2:** Implementar `RecoverableGap` y `find_recoverable_gap`
   - **RF:** RF-2.1, RF-2.2, RF-2.3, RF-2.18
   - **Hecho cuando:** La función pura devuelve las fechas del hueco más reciente cuando tiene
     uno o dos días, devuelve `None` en los demás casos y los tests de la tarea 1.1 pasan.
 
-- [ ] **Tarea 1.3:** Escribir los tests de estadísticas y heatmap con días recuperados
+- [x] **Tarea 1.3:** Escribir los tests de estadísticas y heatmap con días recuperados
   - **RF:** RF-2.9, RF-2.10, RF-2.11
   - **Hecho cuando:** Los tests verifican que la racha actual y la mejor racha incluyen los
     recuperados, que “Días registrados” los excluye y que la celda del heatmap se marca como
     recuperada; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 1.4:** Extender `get_habit_stats`, `count_registered_days` y el heatmap
+- [x] **Tarea 1.4:** Extender `get_habit_stats`, `count_registered_days` y el heatmap
   - **RF:** RF-2.9, RF-2.10, RF-2.11
   - **Hecho cuando:** Las funciones aceptan `recovered_dates` con valor por defecto vacío,
     `HeatmapDay` incluye `recovered` y los tests de la tarea 1.3 pasan sin romper los tests
