@@ -137,18 +137,18 @@
 
 ## Fase 6: Documentación y verificación final
 
-- [ ] **Tarea 6.1:** Actualizar `README.md`
+- [x] **Tarea 6.1:** Actualizar `README.md`
   - **RF:** Todos
   - **Hecho cuando:** El README documenta el aviso de duplicado, la recuperación de rachas de
     uno o dos días, el diálogo, el estado “Recuperado” del heatmap, que los recuperados no
     cuentan para “Días registrados” y los nuevos conteos de tests.
 
-- [ ] **Tarea 6.2:** Ejecutar la suite completa y la cobertura
+- [x] **Tarea 6.2:** Ejecutar la suite completa y la cobertura
   - **RF:** RFN-3, RFN-4
   - **Hecho cuando:** `pytest -q` y `.venv/bin/python -m pytest -q` pasan sin fallos y la
     cobertura de `core.py`, `storage.py`, `app_state.py` y `registration.py` es ≥80 %.
 
-- [ ] **Tarea 6.3:** Verificar los criterios de finalización y el alcance
+- [x] **Tarea 6.3:** Verificar los criterios de finalización y el alcance
   - **RF:** Todos
   - **Hecho cuando:** Se comprueba que el aviso aparece solo en duplicados, que la recuperación
     solo se ofrece con huecos de uno o dos días, que los recuperados cuentan para la racha pero

@@ -19,18 +19,19 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 221 pruebas puras + 86 con Flet (307 en `.venv`)
+- **pytest** — 228 pruebas puras + 86 con Flet (314 en `.venv`)
 
 ## Estado de implementación
 
 Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
 
-Las fases 1 a 5 (detección de huecos recuperables, estadísticas con días recuperados,
-persistencia de `recovered`, carga del estado, aviso de registro duplicado, panel y diálogo de
-recuperación, heatmap con estado propio y conexión en `main` de `core.py`, `storage.py`,
-`app_state.py`, `registration.py`, `theme.py` y `app.py`) están implementadas. La fase 6 sigue
-pendiente; el detalle está en
-`specs/004-duplicate-warning-streak-recovery/tasks.md`.
+La spec 004 está completa. Las fases 1 a 5 (detección de huecos recuperables, estadísticas con
+días recuperados, persistencia de `recovered`, carga del estado, aviso de registro duplicado,
+panel y diálogo de recuperación, heatmap con estado propio y conexión en `main` de `core.py`,
+`storage.py`, `app_state.py`, `registration.py`, `theme.py` y `app.py`) están implementadas. La
+fase 6 añade la documentación, la verificación de la suite y la cobertura (314 pruebas; `core.py`
+99 %, `storage.py` 100 %, `app_state.py` 99 % y `registration.py` 91 %) y la guardia de alcance;
+el detalle está en `specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
 
@@ -172,7 +173,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 221 pruebas puras + 86 con Flet (307 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 228 pruebas puras + 86 con Flet (314 en `.venv`).
 
 ## Iconos
 
@@ -211,6 +212,27 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
 - `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy” y, si el hueco más reciente es de uno o dos días, ofrece “Recuperar racha”.
 - `StreakRecoveryDialog` — diálogo modal que muestra el hábito y los días que se recuperarán, advierte de que cuentan para la racha pero no para “Días registrados”, permite cancelar sin cambios y solo notifica al confirmar.
 - `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Si el día ya estaba registrado, muestra un `SnackBar` no bloqueante con el nombre del hábito y no crea filas adicionales. Al pulsar “Recuperar racha” abre el diálogo con el hueco calculado; al confirmar, `mark_recovered_days_db` guarda los días de forma transaccional, conserva el hábito seleccionado y refresca racha, “Días registrados” y heatmap. Si la persistencia falla, muestra un aviso y no recarga la vista. Los datos permanecen al reiniciar la aplicación.
+
+### Aviso de registro duplicado
+
+- Si el hábito seleccionado ya está registrado hoy, pulsar “Guardar” muestra un `SnackBar` no bloqueante con el texto exacto “⚠️ «nombre» ya está registrado hoy.”.
+- El aviso desaparece automáticamente tras unos segundos sin requerir una acción del usuario, no bloquea cambiar de hábito ni registrar otro, y se muestra sin crear filas adicionales ni modificar la racha o las estadísticas.
+- El panel mantiene “Ya registrado hoy” y la fecha en dd/mm/aaaa; registrar un día nuevo no muestra el aviso y conserva la confirmación “✅ Registro guardado”.
+
+### Recuperación de rachas
+
+La recuperación solo se ofrece para el hueco más reciente de uno o dos días del hábito seleccionado:
+
+- Si el hueco más reciente es de tres o más días, el hábito no tiene registros previos o no hay hueco, la acción “Recuperar racha” no aparece. Los huecos anteriores tampoco se ofrecen.
+- Con un hueco de uno o dos días, el panel muestra “Recuperar racha”. Al pulsarlo, `StreakRecoveryDialog` indica el hábito y cuántos días se recuperarán y advierte de que quedarán marcados como recuperados.
+- “Cancelar” cierra el diálogo sin marcar ningún día ni modificar la vista. “Recuperar” persiste todos los días del hueco con `mark_recovered_days_db` en una transacción, conserva el hábito seleccionado y refresca la barra lateral, las tarjetas y el heatmap.
+- Los días recuperados cuentan para la racha actual y la mejor racha, pero no cuentan para “Días registrados”. Tampoco se convierten en registros normales ni cambian las reglas de racha de los días normales.
+- Los días recuperados persisten entre ejecuciones. Si la persistencia falla, no se guarda ninguno y se muestra un aviso conservando el estado anterior.
+
+### Heatmap con días recuperados
+
+- Cada día recuperado se pinta en ámbar, un color distinto del verde de completado y del gris de no completado.
+- La leyenda incluye “Recuperado” y el tooltip de la celda recuperada indica “Recuperado” junto con la fecha, para distinguir lo registrado de lo recuperado.
 
 ## Requisitos
 
@@ -344,9 +366,11 @@ tests/
 ├── test_registration.py # Tests del registro del día actual (11 tests)
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
 ├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado (5 tests)
+├── test_readme_recovery.py # Tests de la documentación del aviso y la recuperación (4 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
 ├── test_scope_guard_003.py # Guardia de alcance de la spec 003 (4 tests)
+├── test_scope_guard_004.py # Guardia de alcance de la spec 004 (3 tests)
 ├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
