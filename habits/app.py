@@ -52,6 +52,7 @@ from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
     REGISTRATION_DUPLICATE_MESSAGE,
     REGISTRATION_TITLE,
+    duplicate_warning,
     register_today,
 )
 from habits.theme import (
@@ -1530,6 +1531,10 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         result = register_today(
             selected.habit.id, state.today, db_path=db_path
         )
+        if not result.success:
+            page.show_dialog(
+                ft.SnackBar(content=duplicate_warning(selected.habit.name))
+            )
         registration.message = result.message
         refresh_views(selected_id=selected.habit.id)
 

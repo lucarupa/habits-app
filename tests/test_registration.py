@@ -8,6 +8,7 @@ import os
 import tempfile
 from datetime import date
 
+from habits import registration as registration_module
 from habits.app_state import AppState, load_app_state
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
@@ -35,6 +36,12 @@ class TestRegistrationConstants:
         assert REGISTRATION_TITLE == "Registrar hoy"
         assert REGISTRATION_BUTTON_LABEL == "Guardar"
         assert REGISTRATION_DUPLICATE_MESSAGE == "Ya registrado hoy"
+
+    def test_duplicate_warning_uses_habit_name(self):
+        """RF-1.2: el aviso identifica el hábito con el formato acordado."""
+        assert registration_module.duplicate_warning(
+            "Python"
+        ) == "⚠️ «Python» ya está registrado hoy."
 
 
 class TestRegisterToday:

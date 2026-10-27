@@ -74,14 +74,14 @@
 
 ## Fase 4: Aviso de registro duplicado (`registration.py` y `app.py`)
 
-- [ ] **Tarea 4.1:** Escribir los tests del texto y del flujo de duplicado
+- [x] **Tarea 4.1:** Escribir los tests del texto y del flujo de duplicado
   - **RF:** RF-1.1 a RF-1.9
   - **Hecho cuando:** Los tests cubren el texto “⚠️ «nombre» ya está registrado hoy.”, que un
     clic duplicado muestra el aviso sin insertar otra fila, que un registro nuevo no muestra el
     aviso y que el panel muestra “Ya registrado hoy” al intentar duplicar; la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 4.2:** Implementar el texto del aviso y el SnackBar en `main`
+- [x] **Tarea 4.2:** Implementar el texto del aviso y el SnackBar en `main`
   - **RF:** RF-1.1 a RF-1.9
   - **Hecho cuando:** `registration.py` expone una función pura para el texto, `main` muestra un
     `SnackBar` no bloqueante solo cuando `register_today` devuelve duplicado y los tests de la

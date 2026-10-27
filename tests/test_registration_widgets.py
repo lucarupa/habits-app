@@ -253,3 +253,94 @@ class TestRegistrationFlow:
         reloaded = load_app_state(self.db_path, today=self.today)
         assert reloaded.is_completed_today is True
         assert reloaded.selected.stats.current_streak == 1
+
+
+class TestDuplicateWarningFlow:
+    """Aviso emergente de registro duplicado — Tarea 4.1, RF-1.1 a RF-1.9."""
+
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        self.today = date.today()
+        self.habit_id = create_habit_db(
+            "Leer",
+            self.today.isoformat(),
+            icon="book",
+            db_path=self.db_path,
+        )
+
+    def teardown_method(self):
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _open_page(self) -> tuple[FakePage, TodayRegistrationPanel]:
+        page = FakePage()
+        main(page, db_path=self.db_path)
+        detail_column = page.views[0].controls[0].content.controls[1]
+        return page, detail_column.controls[3]
+
+    @staticmethod
+    def _snackbars(page: FakePage) -> list[ft.SnackBar]:
+        return [
+            dialog
+            for dialog in page.open_dialogs
+            if isinstance(dialog, ft.SnackBar)
+        ]
+
+    def test_register_duplicate_shows_snackbar_with_habit_name(self):
+        """RF-1.1, RF-1.2, RF-1.7: el aviso aparece y el panel conserva el texto."""
+        mark_completed_db(
+            self.habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        page, registration = self._open_page()
+
+        registration._save_button.on_click(None)
+
+        snackbars = self._snackbars(page)
+        assert len(snackbars) == 1
+        assert (
+            "⚠️ «Leer» ya está registrado hoy."
+            in collect_texts(snackbars[0])
+        )
+        assert REGISTRATION_DUPLICATE_MESSAGE in collect_texts(registration)
+
+    def test_register_duplicate_does_not_add_rows(self):
+        """RF-1.3: el aviso no crea un registro adicional."""
+        mark_completed_db(
+            self.habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        page, registration = self._open_page()
+
+        registration._save_button.on_click(None)
+
+        assert get_completions_db(self.habit_id, self.db_path) == [
+            self.today.isoformat()
+        ]
+
+    def test_register_new_day_does_not_show_duplicate_warning(self):
+        """RF-1.4: un registro normal no muestra el aviso de duplicado."""
+        page, registration = self._open_page()
+
+        registration._save_button.on_click(None)
+
+        assert self._snackbars(page) == []
+        assert get_completions_db(self.habit_id, self.db_path) == [
+            self.today.isoformat()
+        ]
+        assert REGISTRATION_SUCCESS_MESSAGE in collect_texts(registration)
+
+    def test_repeated_duplicate_attempts_show_the_warning_again(self):
+        """RF-1.5: cada intento duplicado vuelve a mostrar el aviso."""
+        mark_completed_db(
+            self.habit_id, self.today.isoformat(), db_path=self.db_path
+        )
+        page, registration = self._open_page()
+
+        registration._save_button.on_click(None)
+        registration._save_button.on_click(None)
+
+        assert len(self._snackbars(page)) == 2
+        assert get_completions_db(self.habit_id, self.db_path) == [
+            self.today.isoformat()
+        ]

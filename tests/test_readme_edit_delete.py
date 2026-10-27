@@ -59,6 +59,6 @@ class TestReadmeEditDelete:
         """La documentación refleja los conteos actuales de la suite."""
         readme = read_readme()
 
-        assert "220 pruebas puras" in readme
-        assert "65 con Flet" in readme
-        assert "285 en `.venv`" in readme
+        assert "221 pruebas puras" in readme
+        assert "69 con Flet" in readme
+        assert "290 en `.venv`" in readme

@@ -8,7 +8,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Editar un hábito** desde el detalle con el modal precargado, incluida la fecha con calendario.
 - **Eliminar un hábito** con diálogo de confirmación que advierte del borrado permanente de sus registros.
 - **Marcar un hábito como completado** para el día actual, con advertencia si ya fue registrado.
-- **Registrar hoy** desde el panel de detalle con la fecha actual y confirmación inmediata; los duplicados se rechazan.
+- **Registrar hoy** desde el panel de detalle con la fecha actual y confirmación inmediata; los duplicados se rechazan y muestran un aviso emergente con el nombre del hábito.
 - **Listar hábitos** ordenados por racha de días consecutivos descendente, con desempate alfabético.
 - **Ver estadísticas** del hábito seleccionado: racha actual, mejor racha y días registrados.
 - **Heatmap de actividad** de las últimas 5 semanas, con días completados, no completados y futuros.
@@ -19,15 +19,16 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 220 pruebas puras + 65 con Flet (285 en `.venv`)
+- **pytest** — 221 pruebas puras + 69 con Flet (290 en `.venv`)
 
 ## Estado de implementación
 
 Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
 
-Las fases 1 a 3 (detección de huecos recuperables, estadísticas con días recuperados,
-persistencia de `recovered` y carga del estado en `core.py`, `storage.py` y `app_state.py`) están
-implementadas. Las fases 4 a 6 siguen pendientes; el detalle está en
+Las fases 1 a 4 (detección de huecos recuperables, estadísticas con días recuperados,
+persistencia de `recovered`, carga del estado y aviso de registro duplicado en `core.py`,
+`storage.py`, `app_state.py`, `registration.py` y `app.py`) están implementadas. Las fases 5 y 6
+siguen pendientes; el detalle está en
 `specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
@@ -170,7 +171,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 220 pruebas puras + 65 con Flet (285 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 221 pruebas puras + 69 con Flet (290 en `.venv`).
 
 ## Iconos
 
@@ -205,8 +206,9 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
   - `RegistrationResult` — indica si el guardado tuvo éxito y el mensaje para el usuario.
   - `is_registered_today(habit_id, today, db_path)` — consulta si ya existe el registro del día.
   - `register_today(habit_id, today, db_path)` — persiste el completado de hoy y devuelve “✅ Registro guardado”; si ya existía, devuelve “Ya registrado hoy” sin crear un duplicado.
+  - `duplicate_warning(habit_name)` — construye el texto “⚠️ «nombre» ya está registrado hoy.” para el aviso emergente.
 - `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy”.
-- `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Los datos permanecen al reiniciar la aplicación.
+- `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Si el día ya estaba registrado, muestra un `SnackBar` no bloqueante con el nombre del hábito y no crea filas adicionales. Los datos permanecen al reiniciar la aplicación.
 
 ## Requisitos
 
@@ -337,7 +339,7 @@ tests/
 ├── test_theme.py    # Tests del tema y la ventana (3 tests)
 ├── test_habit_form.py # Tests del formulario modal (41 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
-├── test_registration.py # Tests del registro del día actual (10 tests)
+├── test_registration.py # Tests del registro del día actual (11 tests)
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
 ├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado (5 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
@@ -348,7 +350,7 @@ tests/
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
 ├── test_edit_delete_flow.py # Tests del flujo integrado de edición y borrado (7 tests, requiere .venv)
 ├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (20 tests, requiere .venv)
-├── test_registration_widgets.py # Tests del panel y flujo de registro (7 tests, requiere .venv)
+├── test_registration_widgets.py # Tests del panel, flujo y aviso de duplicado (11 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 scripts/
 ├── prepare_macos_bundle.py # Prepara el cliente de Flet con el icono en macOS

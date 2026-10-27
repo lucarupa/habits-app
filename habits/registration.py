@@ -1,8 +1,10 @@
 # spec: 002-ui-redesign
+# spec: 004-duplicate-warning-streak-recovery
 """Lógica pura del registro del día actual.
 
 Persiste el completado de hoy y evita duplicados delegando en `storage.py`.
-No importa Flet (Constitución, principio 3). Cubre RF-5.1 a RF-5.6.
+No importa Flet (Constitución, principio 3). Cubre RF-5.1 a RF-5.6 y el
+texto del aviso de registro duplicado (RF-1.2).
 """
 
 import sqlite3
@@ -14,7 +16,20 @@ from habits.storage import is_completed_today_db, mark_completed_db
 REGISTRATION_TITLE = "Registrar hoy"
 REGISTRATION_BUTTON_LABEL = "Guardar"
 REGISTRATION_DUPLICATE_MESSAGE = "Ya registrado hoy"
+REGISTRATION_DUPLICATE_WARNING = "⚠️ «{name}» ya está registrado hoy."
 REGISTRATION_SUCCESS_MESSAGE = "✅ Registro guardado"
+
+
+def duplicate_warning(habit_name: str) -> str:
+    """Construir el aviso emergente de registro duplicado.
+
+    Args:
+        habit_name: Nombre visible del hábito ya registrado hoy.
+
+    Returns:
+        El texto “⚠️ «nombre» ya está registrado hoy.” (RF-1.2).
+    """
+    return REGISTRATION_DUPLICATE_WARNING.format(name=habit_name)
 
 
 @dataclass(frozen=True)
