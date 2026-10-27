@@ -1,5 +1,6 @@
 # spec: 002-ui-redesign
 # spec: 004-duplicate-warning-streak-recovery
+# spec: 005-local-reminders
 """Tests para el cargador de estado — Tarea 3.1, RF-1.1, RF-1.3, RF-1.5, RFN-3."""
 
 import os
@@ -22,6 +23,8 @@ from habits.storage import (
     init_db,
     mark_completed_db,
     mark_recovered_days_db,
+    save_reminder_db,
+    update_habit_db,
 )
 
 
@@ -501,3 +504,138 @@ class TestEmptyState:
         assert state.empty_state() is None
         assert state.selected_id == habit_id
         assert state.detail_header().habit_id == habit_id
+
+
+class TestReminderState:
+    """Estado con recordatorios — Tarea 3.1.
+
+    RF-1.1, RF-1.3, RF-1.7 y RF-3.5: el estado expone la configuración del
+    recordatorio del hábito seleccionado, los hábitos sin fila aparecen
+    desactivados y el nombre actualizado del hábito se refleja al recargar.
+    """
+
+    def setup_method(self):
+        """Crear una base de datos temporal para cada test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self.temp_dir, "test_habits.db")
+        init_db(self.db_path)
+        self.today = date(2024, 10, 24)
+
+    def teardown_method(self):
+        """Limpiar la base de datos temporal después de cada test."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+    def _create_habit(self, name: str = "Leer") -> int:
+        """Crear un hábito de prueba y devolver su identificador."""
+        return create_habit_db(
+            name, "2024-10-01", db_path=self.db_path
+        )
+
+    def _save_reminder(
+        self,
+        habit_id: int,
+        enabled: bool = True,
+        reminder_time: str | None = "20:00",
+    ) -> None:
+        """Guardar un recordatorio con fecha efectiva ya vigente."""
+        save_reminder_db(
+            habit_id,
+            enabled,
+            reminder_time,
+            self.today.isoformat(),
+            db_path=self.db_path,
+        )
+
+    def test_load_app_state_includes_reminder_configuration(self):
+        """RF-1.1, RF-1.7: el estado expone activación, hora y etiqueta."""
+        habit_id = self._create_habit()
+        self._save_reminder(habit_id, enabled=True, reminder_time="20:00")
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.reminder_enabled is True
+        assert state.selected.reminder_time == "20:00"
+        assert state.selected.reminder_label == "Recordatorio a las 20:00"
+        assert state.reminder_label == "Recordatorio a las 20:00"
+
+    def test_habit_without_reminder_is_disabled(self):
+        """RF-1.3: un hábito sin fila aparece con el recordatorio desactivado."""
+        self._create_habit()
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.reminder_enabled is False
+        assert state.selected.reminder_time is None
+        assert state.selected.reminder_label == "Sin recordatorio"
+        assert state.reminder_label == "Sin recordatorio"
+
+    def test_disabled_reminder_keeps_time_but_shows_disabled(self):
+        """RF-1.1: desactivado conserva la hora guardada pero no la muestra."""
+        habit_id = self._create_habit()
+        self._save_reminder(habit_id, enabled=False, reminder_time="20:00")
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.reminder_enabled is False
+        assert state.selected.reminder_time == "20:00"
+        assert state.reminder_label == "Sin recordatorio"
+
+    def test_reminder_label_follows_selected_habit(self):
+        """RF-1.1: la etiqueta corresponde al hábito seleccionado."""
+        first_id = self._create_habit("Alpha")
+        second_id = self._create_habit("Zebra")
+        self._save_reminder(first_id, reminder_time="07:30")
+        self._save_reminder(second_id, reminder_time="21:15")
+
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.habit.id == first_id
+        assert state.reminder_label == "Recordatorio a las 07:30"
+
+        state.select(second_id)
+
+        assert state.reminder_label == "Recordatorio a las 21:15"
+
+    def test_reminder_label_without_habits_is_disabled(self):
+        """RF-1.1: sin hábito seleccionado no hay recordatorio activo."""
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is None
+        assert state.reminder_label == "Sin recordatorio"
+
+    def test_reminder_configuration_survives_reload(self):
+        """RF-1.7: cerrar y volver a abrir conserva activación y hora."""
+        habit_id = self._create_habit()
+        self._save_reminder(habit_id, enabled=True, reminder_time="18:45")
+
+        first_state = load_app_state(self.db_path, today=self.today)
+        second_state = load_app_state(self.db_path, today=self.today)
+
+        assert first_state.selected is not None
+        assert second_state.selected is not None
+        assert second_state.selected.reminder_enabled is True
+        assert second_state.selected.reminder_time == "18:45"
+
+    def test_renamed_habit_keeps_reminder_and_uses_new_name(self):
+        """RF-3.5: el nombre actualizado se refleja y el recordatorio se conserva."""
+        habit_id = self._create_habit("Leer")
+        self._save_reminder(habit_id, enabled=True, reminder_time="20:00")
+
+        update_habit_db(
+            habit_id,
+            "Leer filosofía",
+            "2024-10-01",
+            db_path=self.db_path,
+        )
+        state = load_app_state(self.db_path, today=self.today)
+
+        assert state.selected is not None
+        assert state.selected.habit.name == "Leer filosofía"
+        assert state.selected.reminder_enabled is True
+        assert state.selected.reminder_time == "20:00"
+        assert state.reminder_label == "Recordatorio a las 20:00"

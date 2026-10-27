@@ -55,13 +55,13 @@
 
 ## Fase 3: Estado de la aplicación (`app_state.py`)
 
-- [ ] **Tarea 3.1:** Escribir los tests del recordatorio en el estado
+- [x] **Tarea 3.1:** Escribir los tests del recordatorio en el estado
   - **RF:** RF-1.1, RF-1.3, RF-1.7, RF-3.5
   - **Hecho cuando:** Los tests comprueban que `HabitState` expone la configuración, que un
     hábito sin fila aparece desactivado y que el nombre actualizado se refleja; la suite muestra
     los fallos esperados.
 
-- [ ] **Tarea 3.2:** Cargar el recordatorio en `HabitState` y `AppState`
+- [x] **Tarea 3.2:** Cargar el recordatorio en `HabitState` y `AppState`
   - **RF:** RF-1.1, RF-1.3, RF-1.7, RF-3.5
   - **Hecho cuando:** `load_app_state` incorpora la configuración y el estado ofrece la etiqueta
     del recordatorio del hábito seleccionado; los tests de la tarea 3.1 pasan.

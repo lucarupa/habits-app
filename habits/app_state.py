@@ -1,10 +1,11 @@
 # spec: 002-ui-redesign
 # spec: 004-duplicate-warning-streak-recovery
+# spec: 005-local-reminders
 """Cargador de estado de la aplicación.
 
-Orquesta la lectura de hábitos y fechas desde `storage.py` y delega los
-cálculos en `core.py`. No importa Flet ni contiene lógica de presentación
-(Constitución, principio 3; RFN-3).
+Orquesta la lectura de hábitos, fechas y recordatorios desde `storage.py` y
+delega los cálculos en `core.py` y `reminders.py`. No importa Flet ni contiene
+lógica de presentación (Constitución, principio 3; RFN-3).
 """
 
 from dataclasses import dataclass, field
@@ -19,9 +20,14 @@ from habits.core import (
     find_recoverable_gap,
     get_habit_stats,
 )
+from habits.reminders import (
+    DISABLED_LABEL,
+    reminder_label as build_reminder_label,
+)
 from habits.storage import (
     get_completions_db,
     get_recovered_dates_db,
+    get_reminder_db,
     list_all_habits_db,
 )
 
@@ -54,7 +60,7 @@ def format_date_label(value: date) -> str:
 
 @dataclass
 class HabitState:
-    """Hábito junto con sus estadísticas y fechas completadas.
+    """Hábito junto con sus estadísticas, fechas y recordatorio.
 
     Atributos:
         habit: El hábito de dominio.
@@ -62,12 +68,26 @@ class HabitState:
         completed_dates: Fechas en las que el hábito se completó, incluidas
             las recuperadas.
         recovered_dates: Subconjunto de fechas marcadas como recuperadas.
+        reminder_enabled: Indica si el recordatorio está activo.
+        reminder_time: Hora guardada en formato HH:MM, aunque esté desactivado.
     """
 
     habit: Habit
     stats: HabitStats
     completed_dates: set[date]
     recovered_dates: set[date] = field(default_factory=set)
+    reminder_enabled: bool = False
+    reminder_time: str | None = None
+
+    @property
+    def reminder_label(self) -> str:
+        """Devolver la etiqueta visible del recordatorio.
+
+        Returns:
+            “Sin recordatorio” si está desactivado o no tiene hora válida, o
+            “Recordatorio a las HH:MM” si está activo (RF-1.1).
+        """
+        return build_reminder_label(self.reminder_enabled, self.reminder_time)
 
 
 @dataclass(frozen=True)
@@ -175,6 +195,20 @@ class AppState:
         if selected is None:
             return False
         return self.today in selected.completed_dates
+
+    @property
+    def reminder_label(self) -> str:
+        """Devolver la etiqueta del recordatorio del hábito seleccionado.
+
+        Returns:
+            “Sin recordatorio” si no hay selección o el recordatorio está
+            desactivado, o “Recordatorio a las HH:MM” si está activo
+            (RF-1.1).
+        """
+        selected = self.selected
+        if selected is None:
+            return DISABLED_LABEL
+        return selected.reminder_label
 
     @property
     def recoverable_gap(self) -> RecoverableGap | None:
@@ -329,18 +363,18 @@ def load_app_state(
 ) -> AppState:
     """Cargar el estado de la aplicación desde la base de datos.
 
-    Obtiene todos los hábitos y sus fechas de completado y recuperadas desde
-    `storage.py`, calcula las estadísticas con `core.py`, ordena por racha
-    actual descendente y nombre ascendente, y selecciona el primer hábito de
-    la lista.
+    Obtiene todos los hábitos y sus fechas de completado, recuperadas y su
+    configuración de recordatorio desde `storage.py`, calcula las estadísticas
+    con `core.py`, ordena por racha actual descendente y nombre ascendente, y
+    selecciona el primer hábito de la lista.
 
     Args:
         db_path: Ruta al archivo de base de datos SQLite.
         today: Fecha actual; si se omite, se usa `date.today()`.
 
     Returns:
-        Un AppState con los hábitos, sus estadísticas, sus fechas recuperadas
-        y la selección inicial.
+        Un AppState con los hábitos, sus estadísticas, sus fechas recuperadas,
+        sus recordatorios y la selección inicial.
     """
     current_day = today or date.today()
     rows = list_all_habits_db(db_path)
@@ -355,6 +389,7 @@ def load_app_state(
             date.fromisoformat(value)
             for value in get_recovered_dates_db(row.id, db_path)
         }
+        reminder = get_reminder_db(row.id, db_path)
         habits_state.append(
             HabitState(
                 habit=Habit(
@@ -370,6 +405,8 @@ def load_app_state(
                 ),
                 completed_dates=completed_dates,
                 recovered_dates=recovered_dates,
+                reminder_enabled=reminder.enabled if reminder else False,
+                reminder_time=reminder.reminder_time if reminder else None,
             )
         )
 
