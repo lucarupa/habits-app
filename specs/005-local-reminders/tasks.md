@@ -68,24 +68,24 @@
 
 ## Fase 4: Adaptador de notificaciones y planificador (`notifications.py`)
 
-- [ ] **Tarea 4.1:** Escribir los tests de los comandos de notificación
+- [x] **Tarea 4.1:** Escribir los tests de los comandos de notificación
   - **RF:** RF-2.3, RF-4.1, RF-4.2, RF-4.3, RFN-5
   - **Hecho cuando:** Los tests verifican los comandos de macOS y Windows, el texto enviado y la
     traducción de errores de permiso o ejecución, usando un ejecutor simulado; la suite muestra
     los fallos esperados.
 
-- [ ] **Tarea 4.2:** Implementar el notificador por plataforma
+- [x] **Tarea 4.2:** Implementar el notificador por plataforma
   - **RF:** RF-2.3, RF-4.1, RF-4.2, RF-4.3, RFN-5
   - **Hecho cuando:** El adaptador envía la notificación con el texto en español, informa del
     permiso y convierte los fallos en resultados controlados; los tests de la tarea 4.1 pasan.
 
-- [ ] **Tarea 4.3:** Escribir los tests de instalación y retirada del planificador
+- [x] **Tarea 4.3:** Escribir los tests de instalación y retirada del planificador
   - **RF:** RF-2.3, RF-3.4, RF-4.4
   - **Hecho cuando:** Los tests cubren instalar una única tarea periódica, actualizarla,
     eliminarla cuando no hay recordatorios y manejar un error de instalación; la suite muestra
     los fallos esperados.
 
-- [ ] **Tarea 4.4:** Implementar el planificador del sistema
+- [x] **Tarea 4.4:** Implementar el planificador del sistema
   - **RF:** RF-2.3, RF-3.4, RF-4.4
   - **Hecho cuando:** El adaptador instala o retira la tarea con los comandos de cada plataforma
     y devuelve errores en español sin lanzar excepciones a la interfaz; los tests de la tarea
