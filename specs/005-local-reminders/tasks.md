@@ -116,33 +116,33 @@
 
 ## Fase 6: Interfaz de configuración (`app.py`)
 
-- [ ] **Tarea 6.1:** Escribir los tests del estado en el encabezado
+- [x] **Tarea 6.1:** Escribir los tests del estado en el encabezado
   - **RF:** RF-1.1, RF-3.5
   - **Hecho cuando:** Los tests comprueban “Sin recordatorio”, la hora activa, el nombre
     actualizado y el botón “Recordatorio”; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 6.2:** Mostrar el recordatorio en el encabezado del detalle
+- [x] **Tarea 6.2:** Mostrar el recordatorio en el encabezado del detalle
   - **RF:** RF-1.1, RF-3.5
   - **Hecho cuando:** El encabezado muestra el estado y notifica el clic del botón sin acceder a
     datos; los tests de la tarea 6.1 pasan.
 
-- [ ] **Tarea 6.3:** Escribir los tests del diálogo de recordatorio
+- [x] **Tarea 6.3:** Escribir los tests del diálogo de recordatorio
   - **RF:** RF-1.2, RF-1.4, RF-1.5, RF-1.6
   - **Hecho cuando:** Los tests cubren activación, hora inválida sin guardar, cambio de hora,
     cancelación sin cambios y notificación del resultado; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 6.4:** Implementar `ReminderDialog`
+- [x] **Tarea 6.4:** Implementar `ReminderDialog`
   - **RF:** RF-1.2, RF-1.4, RF-1.5, RF-1.6
   - **Hecho cuando:** El diálogo modal valida la hora, guarda o cancela y solo notifica la
     configuración al confirmar; los tests de la tarea 6.3 pasan.
 
-- [ ] **Tarea 6.5:** Escribir los tests de la conexión en `main`
+- [x] **Tarea 6.5:** Escribir los tests de la conexión en `main`
   - **RF:** RF-1.2, RF-1.7, RF-3.4, RF-4.2, RF-4.4
   - **Hecho cuando:** Los tests montan `main`, guardan y recargan la configuración, sincronizan
     el planificador, eliminan el hábito y muestran errores de sistema; la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 6.6:** Conectar la configuración y la sincronización en `main`
+- [x] **Tarea 6.6:** Conectar la configuración y la sincronización en `main`
   - **RF:** RF-1.2, RF-1.7, RF-3.4, RF-4.2, RF-4.4
   - **Hecho cuando:** `main` abre el diálogo, guarda con `storage`, sincroniza al iniciar y tras
     cada cambio, elimina la tarea al borrar el último recordatorio y muestra avisos en español;

@@ -49,6 +49,7 @@ from habits.habit_form import (
     create_habit_from_form,
     update_habit_from_form,
 )
+from habits.notifications import SystemNotifier, SystemScheduler
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
     REGISTRATION_DUPLICATE_MESSAGE,
@@ -56,6 +57,7 @@ from habits.registration import (
     duplicate_warning,
     register_today,
 )
+from habits.reminders import effective_date, reminder_message, validate_reminder_time
 from habits.theme import (
     ACCENT_GREEN,
     BACKGROUND,
@@ -78,11 +80,13 @@ from habits.storage import (
     init_db,
     create_habit_db,
     delete_habit_db,
+    get_reminder_db,
     list_all_habits_db,
     get_completions_db,
     mark_completed_db,
     mark_recovered_days_db,
     is_completed_today_db,
+    save_reminder_db,
 )
 
 ICON_BY_KEY = {
@@ -280,17 +284,20 @@ class Sidebar(ft.Container):
 class HabitDetailHeader(ft.Container):
     """Encabezado del panel de detalle del hábito seleccionado.
 
-    Tareas 3.3 y 5.2, RF-1.1 a RF-1.5, RF-3.1 y RF-7.4. Muestra el icono, el
-    nombre, el subtítulo “Hábito de estudio”, la fecha de inicio en dd/mm/aaaa
-    y las acciones “Editar” y “Eliminar”, que solo aparecen con un hábito
-    seleccionado y notifican su ID mediante callbacks.
+    Tareas 3.3, 5.2 y 6.2, RF-1.1 a RF-1.5, RF-3.1, RF-3.5 y RF-7.4. Muestra
+    el icono, el nombre, el subtítulo “Hábito de estudio”, la fecha de inicio
+    en dd/mm/aaaa, el estado del recordatorio y las acciones “Recordatorio”,
+    “Editar” y “Eliminar”, que solo aparecen con un hábito seleccionado y
+    notifican su ID mediante callbacks.
     """
 
     state: AppState | None = skip_field()
     on_edit: Callable[[int], None] | None = None
     on_delete: Callable[[int], None] | None = None
+    on_reminder: Callable[[int], None] | None = None
     edit_button: ft.TextButton | None = skip_field()
     delete_button: ft.TextButton | None = skip_field()
+    reminder_button: ft.TextButton | None = skip_field()
     _body: ft.Column | None = None
 
     def init(self):
@@ -313,9 +320,15 @@ class HabitDetailHeader(ft.Container):
         if header is None:
             self.edit_button = None
             self.delete_button = None
+            self.reminder_button = None
             self._body.controls = []
             return
 
+        self.reminder_button = ft.TextButton(
+            content="Recordatorio",
+            icon=ft.Icons.NOTIFICATIONS_OUTLINED,
+            on_click=self._handle_reminder,
+        )
         self.edit_button = ft.TextButton(
             content="Editar",
             icon=ft.Icons.EDIT,
@@ -353,10 +366,20 @@ class HabitDetailHeader(ft.Container):
                                 size=14,
                                 color=TEXT_SECONDARY,
                             ),
+                            ft.Text(
+                                value=(
+                                    self.state.reminder_label
+                                    if self.state is not None
+                                    else ""
+                                ),
+                                size=12,
+                                color=TEXT_SECONDARY,
+                            ),
                         ],
                         spacing=2,
                         expand=True,
                     ),
+                    self.reminder_button,
                     self.edit_button,
                     self.delete_button,
                 ],
@@ -369,6 +392,12 @@ class HabitDetailHeader(ft.Container):
                 color=TEXT_SECONDARY,
             ),
         ]
+
+    def _handle_reminder(self, event=None) -> None:
+        """Notificar la configuración del recordatorio (RF-1.1)."""
+        selected = self.state.selected if self.state is not None else None
+        if selected is not None and self.on_reminder is not None:
+            self.on_reminder(selected.habit.id)
 
     def _handle_edit(self, event=None) -> None:
         """Notificar la edición del hábito seleccionado (RF-1.3)."""
@@ -1093,6 +1122,138 @@ class DeleteHabitDialog:
             self.on_confirm(habit.id)
 
 
+REMINDER_DIALOG_TITLE = "Recordatorio"
+REMINDER_SWITCH_LABEL = "Activar recordatorio"
+REMINDER_TIME_LABEL = "Hora (HH:MM)"
+INVALID_REMINDER_TIME_MESSAGE = (
+    "Introduce una hora válida en formato HH:MM (de 00:00 a 23:59)."
+)
+
+
+class ReminderDialog:
+    """Diálogo modal para configurar el recordatorio de un hábito.
+
+    Tarea 6.4, RF-1.2, RF-1.4, RF-1.5 y RF-1.6. Activa o desactiva el aviso,
+    permite cambiar su hora y valida el formato antes de guardar. Solo
+    notifica el hábito y la configuración al confirmar; la persistencia queda
+    en `main` (Constitución, principio 3).
+    """
+
+    def __init__(
+        self,
+        page: ft.Page,
+        on_save: Callable[[int, bool, str | None], None] | None = None,
+    ) -> None:
+        """Construir el diálogo de configuración del recordatorio.
+
+        Args:
+            page: Página Flet sobre la que se muestra el diálogo.
+            on_save: Callback invocado con el ID del hábito, si el recordatorio
+                queda activo y la hora normalizada o None.
+        """
+        self.page = page
+        self.on_save = on_save
+        self.habit: Habit | None = None
+
+        self.habit_name_text = ft.Text(
+            value="",
+            size=16,
+            weight="bold",
+            color=TEXT_PRIMARY,
+        )
+        self.enabled_switch = ft.Switch(
+            label=REMINDER_SWITCH_LABEL,
+            value=False,
+        )
+        self.time_field = ft.TextField(
+            label=REMINDER_TIME_LABEL,
+            value="",
+            hint_text="HH:MM",
+        )
+        self.error_text = ft.Text(
+            value="",
+            size=14,
+            color="red",
+            visible=False,
+        )
+        self.dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(REMINDER_DIALOG_TITLE, size=20, weight="bold"),
+            content=ft.Column(
+                controls=[
+                    self.habit_name_text,
+                    self.enabled_switch,
+                    self.time_field,
+                    self.error_text,
+                ],
+                spacing=12,
+                tight=True,
+                width=420,
+            ),
+            actions=[
+                ft.TextButton(
+                    content="Cancelar",
+                    on_click=self.close,
+                ),
+                ft.Button(
+                    content="Guardar",
+                    icon=ft.Icons.SAVE,
+                    on_click=self.save,
+                ),
+            ],
+            actions_alignment="end",
+        )
+
+    def open(
+        self,
+        habit: Habit,
+        *,
+        enabled: bool = False,
+        reminder_time: str | None = None,
+    ) -> None:
+        """Abrir el diálogo con la configuración actual del hábito (RF-1.2)."""
+        self.habit = habit
+        self.habit_name_text.value = habit.name
+        self.enabled_switch.value = enabled
+        self.time_field.value = reminder_time or ""
+        self._show_error("")
+        self.page.show_dialog(self.dialog)
+
+    def close(self, event=None) -> None:
+        """Cerrar el diálogo sin guardar cambios."""
+        self.habit = None
+        self.page.pop_dialog()
+
+    def save(self, event=None) -> None:
+        """Validar y notificar la configuración elegida (RF-1.2 a RF-1.6).
+
+        Con el recordatorio activo, una hora vacía, incompleta o fuera de
+        rango muestra un mensaje en español y mantiene el diálogo abierto sin
+        guardar. Al desactivar no se exige hora y se conserva la que hubiera.
+        """
+        habit = self.habit
+        if habit is None:
+            return
+
+        enabled = bool(self.enabled_switch.value)
+        valid_time = validate_reminder_time(self.time_field.value or "")
+        if enabled and valid_time is None:
+            self._show_error(INVALID_REMINDER_TIME_MESSAGE)
+            return
+
+        self._show_error("")
+        self.close()
+        if self.on_save is not None:
+            self.on_save(habit.id, enabled, valid_time)
+
+    def _show_error(self, message: str) -> None:
+        """Mostrar u ocultar el mensaje de error sin cerrar el diálogo."""
+        self.error_text.value = message
+        self.error_text.visible = bool(message)
+        if self.dialog.open:
+            self.page.update()
+
+
 class StreakRecoveryDialog:
     """Diálogo modal para confirmar la recuperación de una racha.
 
@@ -1588,21 +1749,38 @@ def configure_page(page: ft.Page) -> None:
         page.window.icon = str(APP_ICON_PATH)
 
 
-def main(page: ft.Page, db_path: str = "data/habits.db"):
+REMINDER_ACTIVATION_ERROR = "No se pudo activar el recordatorio."
+REMINDER_SCHEDULER_ERROR = (
+    "No se pudo programar el recordatorio en el sistema. "
+    "La configuración anterior se conserva."
+)
+
+
+def main(
+    page: ft.Page,
+    db_path: str = "data/habits.db",
+    *,
+    scheduler: SystemScheduler | None = None,
+    notifier: SystemNotifier | None = None,
+):
     """Punto de entrada de la aplicación Flet.
 
-    Tareas 3.5, 4.1 a 4.4, 5.1 a 5.4 y 6.1 a 6.3: aplica el tema, monta el
-    layout de dos zonas, conecta la creación modal, la edición y la eliminación
-    con confirmación, y muestra las estadísticas, el heatmap y el panel
-    “Registrar hoy” del hábito seleccionado. Al registrar el día actual, todas
-    las zonas se actualizan sin reiniciar la aplicación y los duplicados se
-    rechazan. La recuperación de rachas abre un diálogo de confirmación y
-    persiste los días recuperados antes de refrescar la vista.
+    Tareas 3.5, 4.1 a 4.4, 5.1 a 5.4 y 6.1 a 6.6: aplica el tema, monta el
+    layout de dos zonas, conecta la creación modal, la edición, la eliminación,
+    las estadísticas, el heatmap, el panel “Registrar hoy” y la configuración
+    del recordatorio. Al guardar un recordatorio se comprueba el permiso del
+    sistema, se persiste la configuración, se sincroniza la tarea periódica y
+    se refresca la vista. Un fallo del sistema conserva la configuración
+    anterior y se comunica con un aviso en español.
 
     Args:
         page: Página Flet proporcionada por `ft.run`.
         db_path: Ruta a la base de datos SQLite.
+        scheduler: Planificador del sistema; por defecto, `SystemScheduler`.
+        notifier: Notificador del sistema; por defecto, `SystemNotifier`.
     """
+    scheduler = scheduler if scheduler is not None else SystemScheduler()
+    notifier = notifier if notifier is not None else SystemNotifier()
     configure_page(page)
     init_db(db_path)
 
@@ -1711,6 +1889,99 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
 
         refresh_views()
 
+        sync_result = scheduler.sync(
+            db_path, has_active_reminders=has_active_reminders()
+        )
+        if not sync_result.ok:
+            show_warning(sync_result.message or REMINDER_SCHEDULER_ERROR)
+
+    def show_warning(message: str) -> None:
+        """Mostrar un aviso en español sin cerrar la aplicación."""
+        page.show_dialog(ft.SnackBar(content=ft.Text(f"⚠️ {message}")))
+
+    def has_active_reminders() -> bool:
+        """Indicar si el estado actual tiene algún recordatorio activo."""
+        return any(habit_state.reminder_enabled for habit_state in state.habits)
+
+    def has_active_after(habit_id: int, enabled: bool) -> bool:
+        """Calcular si quedará algún recordatorio activo tras el cambio."""
+        if enabled:
+            return True
+        return any(
+            habit_state.reminder_enabled
+            and habit_state.habit.id != habit_id
+            for habit_state in state.habits
+        )
+
+    def sync_scheduler() -> None:
+        """Sincronizar la tarea periódica y avisar de los fallos (RF-3.4)."""
+        result = scheduler.sync(
+            db_path, has_active_reminders=has_active_reminders()
+        )
+        if not result.ok:
+            show_warning(result.message or REMINDER_SCHEDULER_ERROR)
+
+    def on_reminder_saved(
+        habit_id: int, enabled: bool, reminder_time: str | None
+    ) -> None:
+        """Guardar la configuración y sincronizar la tarea (RF-1.2 a RF-4.4).
+
+        Al activar se envía primero una notificación de prueba: si el sistema
+        la rechaza, la configuración anterior se conserva y se muestra un
+        aviso en español (RF-4.1 a RF-4.3). La tarea periódica se sincroniza
+        antes de persistir, de modo que un fallo al programar tampoco altera
+        la configuración guardada (RF-4.4).
+        """
+        habit = find_habit(habit_id)
+        if habit is None:
+            return
+
+        if enabled and reminder_time is None:
+            show_warning(REMINDER_ACTIVATION_ERROR)
+            return
+
+        if enabled:
+            notification = notifier.notify(reminder_message(habit.name))
+            if not notification.ok:
+                show_warning(
+                    notification.message or REMINDER_ACTIVATION_ERROR
+                )
+                return
+
+        previous = get_reminder_db(habit_id, db_path=db_path)
+        if enabled:
+            if (
+                previous is not None
+                and previous.enabled
+                and previous.reminder_time == reminder_time
+            ):
+                effective_from = previous.effective_from
+            else:
+                effective_from = effective_date(
+                    datetime.now(), reminder_time
+                ).isoformat()
+        elif previous is not None:
+            effective_from = previous.effective_from
+        else:
+            effective_from = date.today().isoformat()
+
+        sync_result = scheduler.sync(
+            db_path,
+            has_active_reminders=has_active_after(habit_id, enabled),
+        )
+        if not sync_result.ok:
+            show_warning(sync_result.message or REMINDER_SCHEDULER_ERROR)
+            return
+
+        save_reminder_db(
+            habit_id,
+            enabled,
+            reminder_time,
+            effective_from,
+            db_path=db_path,
+        )
+        refresh_views(selected_id=habit_id)
+
     def on_streak_recovered(habit: Habit, dates: tuple[date, ...]) -> None:
         """Persistir los días recuperados y recargar la vista.
 
@@ -1746,6 +2017,7 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
     recovery_dialog = StreakRecoveryDialog(
         page, on_confirm=on_streak_recovered
     )
+    reminder_dialog = ReminderDialog(page, on_save=on_reminder_saved)
 
     def find_habit(habit_id: int) -> Habit | None:
         """Buscar un hábito del estado actual por su ID."""
@@ -1777,6 +2049,20 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
         if selected is not None and gap is not None:
             recovery_dialog.open(selected.habit, gap.dates)
 
+    def open_reminder_dialog(habit_id: int) -> None:
+        """Abrir la configuración del recordatorio actual (RF-1.2)."""
+        habit = find_habit(habit_id)
+        if habit is None:
+            return
+        reminder = get_reminder_db(habit_id, db_path=db_path)
+        reminder_dialog.open(
+            habit,
+            enabled=bool(reminder.enabled) if reminder is not None else False,
+            reminder_time=(
+                reminder.reminder_time if reminder is not None else None
+            ),
+        )
+
     sidebar.on_select = on_select
     sidebar.on_new = open_create_dialog
     registration.on_save = on_register_today
@@ -1784,7 +2070,9 @@ def main(page: ft.Page, db_path: str = "data/habits.db"):
     empty_panel.on_create = open_create_dialog
     header.on_edit = open_edit_dialog
     header.on_delete = open_delete_dialog
+    header.on_reminder = open_reminder_dialog
 
+    sync_scheduler()
     page.add(ft.Container(content=layout, padding=16, expand=True))
 
 
