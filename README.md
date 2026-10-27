@@ -19,7 +19,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 179 pruebas puras + 65 con Flet (244 en `.venv`)
+- **pytest** — 188 pruebas puras + 65 con Flet (253 en `.venv`)
 
 ## Estado de implementación
 
@@ -33,8 +33,8 @@ Spec activa: **003 — Edición y eliminación de hábitos**.
 | Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ✅ Completada |
 | Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ✅ Completada |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ✅ Completada |
-| Fase 7 | Documentación y verificación final | 3 | ⬜ Pendiente |
-| **Total** | | **21** | **18 / 21 completadas** |
+| Fase 7 | Documentación y verificación final | 3 | ✅ Completada |
+| **Total** | | **21** | **21 / 21 completadas** |
 
 Las Fases 1 a 6 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
 dominio, `storage.py` persiste la edición y el borrado transaccional, `habit_form.py` valida la
@@ -42,9 +42,10 @@ edición, y el diálogo modal distingue creación y edición con un campo de fec
 calendario en español que bloquea los días futuros. El encabezado del detalle muestra las
 acciones “Editar” y “Eliminar” solo con un hábito seleccionado, el diálogo de confirmación
 advierte del borrado permanente y `main` conecta ambos flujos: la edición conserva la selección y
-los registros, y la eliminación recarga la lista o muestra el estado vacío. Falta la verificación
-y documentación final (Fase 7). El detalle de cada tarea, con sus RF y criterios “Hecho cuando”,
-está en `specs/003-edit-delete-habits/tasks.md`.
+los registros, y la eliminación recarga la lista o muestra el estado vacío. La spec 003 está
+completa: documentación (7.1), suite y cobertura (7.2) y verificación del alcance (7.3). El
+detalle de cada tarea, con sus RF y criterios “Hecho cuando”, está en
+`specs/003-edit-delete-habits/tasks.md`.
 
 ## Diseño de la interfaz
 
@@ -151,6 +152,15 @@ En `habits/app.py`:
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
 
+### Edición y eliminación de hábitos
+
+La spec 003 añade la edición y el borrado desde el panel de detalle:
+
+- **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
+- **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
+- **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
+- **Pruebas** — la suite cubre dominio, persistencia, formulario, diálogos y flujos integrados: 188 pruebas puras + 65 con Flet (253 en `.venv`).
+
 ## Iconos
 
 Cada hábito guarda una clave semántica en la columna `icon`; la interfaz la traduce a un
@@ -255,6 +265,10 @@ Con cobertura:
 pytest --cov=habits --cov-report=term-missing
 ```
 
+Cobertura actual de los módulos con lógica: `core.py` 99 %, `storage.py` 100 % y
+`habit_form.py` 96 % (total del paquete 84 %). La interfaz (`app.py`) se valida con tests de
+widgets y comprobación manual.
+
 ## Generar ejecutable de producción
 
 Usa el comando integrado de Flet para empaquetar la aplicación:
@@ -313,8 +327,10 @@ tests/
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
 ├── test_registration.py # Tests del registro del día actual (10 tests)
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
+├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado (5 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
+├── test_scope_guard_003.py # Guardia de alcance de la spec 003 (4 tests)
 ├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)

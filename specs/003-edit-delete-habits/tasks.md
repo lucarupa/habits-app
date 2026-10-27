@@ -125,17 +125,17 @@
 
 ## Fase 7: Documentación y verificación final
 
-- [ ] **Tarea 7.1:** Actualizar `README.md`
+- [x] **Tarea 7.1:** Actualizar `README.md`
   - **RF:** Todos
   - **Hecho cuando:** El README documenta la edición, la eliminación con confirmación, el
     calendario de fecha, el borrado de registros asociados y los nuevos conteos de tests.
 
-- [ ] **Tarea 7.2:** Ejecutar la suite completa y la cobertura
+- [x] **Tarea 7.2:** Ejecutar la suite completa y la cobertura
   - **RF:** RFN-3, RFN-7
   - **Hecho cuando:** `pytest -q` y `.venv\Scripts\python.exe -m pytest -q` pasan sin fallos y la
     cobertura de `core.py`, `storage.py` y `habit_form.py` es ≥80 %.
 
-- [ ] **Tarea 7.3:** Verificar manualmente los criterios de finalización y el alcance
+- [x] **Tarea 7.3:** Verificar manualmente los criterios de finalización y el alcance
   - **RF:** Todos
   - **Hecho cuando:** Se comprueba en la aplicación que editar y eliminar funcionan, que el
     calendario bloquea futuras, que la selección posterior es correcta y que no se añadieron
