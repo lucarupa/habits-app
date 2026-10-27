@@ -150,13 +150,13 @@
 
 ## Fase 7: Documentación
 
-- [ ] **Tarea 7.1:** Escribir los tests de la documentación de recordatorios
+- [x] **Tarea 7.1:** Escribir los tests de la documentación de recordatorios
   - **RF:** RF-1, RF-2.3, RF-2.4, RF-2.5, RF-2.7, RFN-5
   - **Hecho cuando:** Los tests comprueban la configuración, el funcionamiento con la app
     cerrada, macOS y Windows, el límite de un aviso diario, los pendientes y los conteos de la
     suite; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 7.2:** Actualizar `README.md`
+- [x] **Tarea 7.2:** Actualizar `README.md`
   - **RF:** RF-1, RF-2.3, RF-2.4, RF-2.5, RF-2.7, RFN-5
   - **Hecho cuando:** El README documenta activación, hora, desactivación, notificaciones con la
     app cerrada, plataformas, límites y los conteos actualizados; los tests de la tarea 7.1

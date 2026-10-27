@@ -13,25 +13,36 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Ver estadísticas** del hábito seleccionado: racha actual, mejor racha y días registrados.
 - **Heatmap de actividad** de las últimas 5 semanas, con días completados, recuperados, no completados y futuros.
 - **Cálculo de racha estricta**: la racha cuenta hacia atrás desde hoy; si el último día no es hoy, la racha es cero.
+- **Recordatorios locales por hábito** con hora `HH:MM`, notificaciones diarias de los hábitos pendientes, funcionamiento con la app cerrada en macOS y Windows, y estado visible en el encabezado del detalle.
 
 ## Stack tecnológico
 
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 228 pruebas puras + 86 con Flet (314 en `.venv`)
+- **pytest** — 341 pruebas puras + 113 con Flet (454 en `.venv`)
 
 ## Estado de implementación
 
-Spec activa: **004 — Aviso de registro duplicado y recuperación de racha**.
+Spec activa: **005 — Recordatorios locales por hábito**.
 
-La spec 004 está completa. Las fases 1 a 5 (detección de huecos recuperables, estadísticas con
-días recuperados, persistencia de `recovered`, carga del estado, aviso de registro duplicado,
-panel y diálogo de recuperación, heatmap con estado propio y conexión en `main` de `core.py`,
-`storage.py`, `app_state.py`, `registration.py`, `theme.py` y `app.py`) están implementadas. La
-fase 6 añade la documentación, la verificación de la suite y la cobertura (314 pruebas; `core.py`
-99 %, `storage.py` 100 %, `app_state.py` 99 % y `registration.py` 91 %) y la guardia de alcance;
-el detalle está en `specs/004-duplicate-warning-streak-recovery/tasks.md`.
+Las fases 1 a 7 de la spec 005 están implementadas: lógica pura de validación y
+vencimiento (`reminders.py`), tabla `reminders` y entrega atómica (`storage.py`), estado del
+recordatorio (`app_state.py`), notificador y planificador del sistema (`notifications.py`),
+servicio y runner periódico (`reminder_service.py`, `reminder_runner.py`), y configuración en el
+encabezado del detalle y en `main` (`app.py`). La fase 8 añade la guardia de alcance y la
+verificación final; el detalle está en `specs/005-local-reminders/tasks.md`.
+
+### Spec 004 — completada
+
+Spec 004 — Aviso de registro duplicado y recuperación de racha. Las fases 1 a 5 (detección de
+huecos recuperables, estadísticas con días recuperados, persistencia de `recovered`, carga del
+estado, aviso de registro duplicado, panel y diálogo de recuperación, heatmap con estado propio y
+conexión en `main` de `core.py`, `storage.py`, `app_state.py`, `registration.py`, `theme.py` y
+`app.py`) están implementadas. La fase 6 añade la documentación, la verificación de la suite y la
+cobertura (314 pruebas en ese momento; `core.py` 99 %, `storage.py` 100 %, `app_state.py` 99 % y
+`registration.py` 91 %) y la guardia de alcance; el detalle está en
+`specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
 
@@ -234,6 +245,44 @@ La recuperación solo se ofrece para el hueco más reciente de uno o dos días d
 - Cada día recuperado se pinta en ámbar, un color distinto del verde de completado y del gris de no completado.
 - La leyenda incluye “Recuperado” y el tooltip de la celda recuperada indica “Recuperado” junto con la fecha, para distinguir lo registrado de lo recuperado.
 
+### Recordatorios locales
+
+Cada hábito puede avisar una vez al día a la hora que elijas, incluso con la aplicación cerrada.
+El recordatorio es independiente del registro diario: avisar no marca el hábito como completado ni
+altera la racha, las estadísticas o el heatmap.
+
+- **Activar o cambiar la hora** — el botón “Recordatorio” del encabezado del detalle abre
+  `ReminderDialog`. El interruptor “Activar recordatorio” y el campo “Hora (HH:MM)” aceptan
+  cualquier hora dentro de `00:00-23:59`; “Guardar” persiste con `save_reminder_db` y “Cancelar”
+  cierra sin modificar nada. Una hora vacía, incompleta o fuera de rango muestra un mensaje de
+  error en español y conserva la configuración anterior.
+- **Desactivar** — al apagar el interruptor y guardar, el recordatorio queda desactivado y el
+  estado vuelve a “Sin recordatorio”; tampoco se envían avisos futuros para ese hábito. Cambiar la
+  hora después de un aviso no lo repite ese mismo día: la nueva hora se aplica desde el día
+  siguiente.
+- **Estado visible** — el encabezado muestra “Sin recordatorio” o “Recordatorio a las HH:MM” junto
+  al nombre actualizado del hábito.
+- **Avisos** — la notificación incluye el nombre del hábito y se envía solo si el hábito sigue
+  pendiente. El límite es un aviso al día por hábito: una vez mostrado no se repite aunque la
+  comprobación vuelva a ejecutarse o la aplicación se reinicie, y el sistema evita duplicados y
+  avisos retroactivos. Si el hábito ya está registrado antes de su hora, el recordatorio de ese
+  día no se muestra. Si el permiso de notificaciones está denegado, la activación no se confirma
+  y se explica en español cómo habilitarlo.
+
+**Con la aplicación cerrada.** `SystemScheduler` instala una única tarea periódica por usuario que
+ejecuta `habits.reminder_runner` cada minuto con la ruta de la base de datos. El runner usa la hora
+local, entrega los avisos pendientes y no duplica los ya mostrados. En **macOS** la tarea es un
+agente `launchd` gestionado con `launchctl`; en **Windows** es una tarea de `schtasks`. Si no queda
+ningún recordatorio activo, la tarea se retira al guardar el cambio o al arrancar la aplicación.
+Linux y otros sistemas no están soportados para notificaciones; la aplicación sigue funcionando
+sin recordatorios.
+
+**Pruebas de recordatorios.** `tests/test_reminders.py`, `tests/test_storage.py`,
+`tests/test_app_state.py`, `tests/test_reminder_service.py`, `tests/test_reminder_runner.py`,
+`tests/test_notifications.py`, `tests/test_reminder_widgets.py`, `tests/test_reminder_flow.py` y
+`tests/test_readme_reminders.py` cubren la lógica, la persistencia, la entrega, el planificador y
+la interfaz. La suite actual suma 341 pruebas puras + 113 con Flet (454 en `.venv`).
+
 ## Requisitos
 
 - Python 3.12 o superior
@@ -254,7 +303,7 @@ pip install -r requirements.txt
 python -m habits.app
 ```
 
-La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas, el heatmap de 5 semanas y el panel “Registrar hoy”. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación.
+La aplicación se abre en una ventana de escritorio con la barra lateral de hábitos y el panel de detalle, que incluye las tarjetas de estadísticas, el heatmap de 5 semanas, el panel “Registrar hoy” y el estado del recordatorio en el encabezado. El botón “+ Nuevo” y el CTA del estado vacío abren el mismo diálogo modal de creación; el botón “Recordatorio” abre la configuración del aviso.
 
 ### Icono de la app en macOS
 
@@ -290,7 +339,7 @@ rachas variadas. Antes de reemplazar los datos existentes guarda una copia en
 pytest -q
 ```
 
-`tests/test_habit_dialog.py`, `tests/test_detail_widgets.py`, `tests/test_serialization.py` y `tests/test_registration_widgets.py` requieren Flet y se omiten automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
+`tests/test_habit_dialog.py`, `tests/test_detail_widgets.py`, `tests/test_serialization.py`, `tests/test_registration_widgets.py`, `tests/test_reminder_widgets.py` y `tests/test_reminder_flow.py` requieren Flet y se omiten automáticamente en un Python sin Flet. Para ejecutar la suite completa, usa el intérprete del proyecto:
 
 ```bash
 .venv\Scripts\python.exe -m pytest -q
@@ -349,13 +398,18 @@ Para más opciones, consulta la [documentación de `flet pack`](https://flet.dev
 habits/
 ├── __init__.py
 ├── core.py          # Lógica de dominio: modelos y cálculo de racha
-├── storage.py       # Persistencia SQLite: CRUD de hábitos y registros
+├── storage.py       # Persistencia SQLite: CRUD, registros y recordatorios
 ├── app_state.py     # Cargador de estado: une storage y core sin Flet
 ├── habit_form.py    # Validación y persistencia del formulario modal
 ├── registration.py  # Registro del día actual y prevención de duplicados
+├── reminders.py     # Lógica pura de recordatorios: hora, etiqueta y vencimiento
+├── reminder_service.py # Entrega de recordatorios vencidos sin depender de Flet
+├── reminder_runner.py  # Entrada periódica del planificador del sistema
+├── notifications.py # Notificador y planificador macOS/Windows
 ├── theme.py         # Tema visual y dimensiones de ventana
-└── app.py           # Interfaz Flet: barra lateral, detalle, modal y registro
+└── app.py           # Interfaz Flet: barra lateral, detalle, modales y registro
 tests/
+├── conftest.py      # Dobles inertes del planificador y notificador para la suite
 ├── test_core.py     # Tests de lógica de dominio (52 tests)
 ├── test_recovery.py # Tests de huecos recuperables y días recuperados (16 tests)
 ├── test_storage.py  # Tests de persistencia (44 tests)
@@ -364,9 +418,14 @@ tests/
 ├── test_habit_form.py # Tests del formulario modal (41 tests)
 ├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
 ├── test_registration.py # Tests del registro del día actual (11 tests)
+├── test_reminders.py # Tests de la lógica pura de recordatorios
+├── test_reminder_service.py # Tests de la entrega de recordatorios
+├── test_reminder_runner.py # Tests del runner periódico
+├── test_notifications.py # Tests del notificador y planificador simulados
 ├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
 ├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado (5 tests)
 ├── test_readme_recovery.py # Tests de la documentación del aviso y la recuperación (4 tests)
+├── test_readme_reminders.py # Tests de la documentación de los recordatorios (4 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
 ├── test_scope_guard_003.py # Guardia de alcance de la spec 003 (4 tests)
@@ -378,6 +437,8 @@ tests/
 ├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (22 tests, requiere .venv)
 ├── test_registration_widgets.py # Tests del panel, aviso de duplicado y diálogo de recuperación (21 tests, requiere .venv)
 ├── test_recovery_flow.py # Tests del flujo integrado de recuperación (5 tests, requiere .venv)
+├── test_reminder_widgets.py # Tests del encabezado y del diálogo de recordatorio (18 tests, requiere .venv)
+├── test_reminder_flow.py # Tests del flujo integrado de recordatorios (9 tests, requiere .venv)
 └── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
 scripts/
 ├── prepare_macos_bundle.py # Prepara el cliente de Flet con el icono en macOS
@@ -400,9 +461,17 @@ specs/
 │   ├── spec.md      # Especificación del rediseño de interfaz
 │   ├── plan.md      # Plan técnico de estadísticas, heatmap e iconos
 │   └── tasks.md     # Checklist de implementación del rediseño
-└── 003-edit-delete-habits/
+├── 003-edit-delete-habits/
     ├── spec.md      # Especificación de edición y eliminación
     ├── plan.md      # Plan técnico de actualización, borrado y calendario
+    └── tasks.md     # Checklist de implementación
+├── 004-duplicate-warning-streak-recovery/
+│   ├── spec.md      # Especificación del aviso y la recuperación de rachas
+│   ├── plan.md      # Plan técnico de huecos, recuperación y heatmap
+│   └── tasks.md     # Checklist de implementación
+└── 005-local-reminders/
+    ├── spec.md      # Especificación de recordatorios locales por hábito
+    ├── plan.md      # Plan técnico de persistencia, entrega y planificador
     └── tasks.md     # Checklist de implementación
 ```
 
@@ -416,6 +485,12 @@ specs/
 - **Especificación 003** — `specs/003-edit-delete-habits/spec.md`: edición y eliminación de hábitos, con calendario para la fecha de inicio.
 - **Plan 003** — `specs/003-edit-delete-habits/plan.md`: diseño de la actualización, el borrado transaccional y el calendario.
 - **Tareas 003** — `specs/003-edit-delete-habits/tasks.md`: checklist de implementación de la edición y eliminación.
+- **Especificación 004** — `specs/004-duplicate-warning-streak-recovery/spec.md`: aviso de registro duplicado y recuperación de rachas.
+- **Plan 004** — `specs/004-duplicate-warning-streak-recovery/plan.md`: diseño de huecos recuperables, días recuperados y heatmap.
+- **Tareas 004** — `specs/004-duplicate-warning-streak-recovery/tasks.md`: checklist de implementación del aviso y la recuperación.
+- **Especificación 005** — `specs/005-local-reminders/spec.md`: recordatorios locales por hábito con hora configurable.
+- **Plan 005** — `specs/005-local-reminders/plan.md`: persistencia, entrega, runner y planificador del sistema.
+- **Tareas 005** — `specs/005-local-reminders/tasks.md`: checklist de implementación de los recordatorios.
 - **Plan de implementación** — `specs/001-habits-mvp/plan.md`: arquitectura, modelo de datos y decisiones técnicas.
 - **Tareas** — `specs/001-habits-mvp/tasks.md`: checklist de tareas con criterios de aceptación.
 
