@@ -93,23 +93,23 @@
 
 ## Fase 5: Servicio y ejecución periódica (`reminder_service.py`, `reminder_runner.py`)
 
-- [ ] **Tarea 5.1:** Escribir los tests del servicio de entrega
+- [x] **Tarea 5.1:** Escribir los tests del servicio de entrega
   - **RF:** RF-2.1, RF-2.4, RF-2.6, RF-2.7, RF-2.8, RF-3.2, RF-3.3, RF-4.5, RFN-7
   - **Hecho cuando:** Los tests cubren solo pendientes, un aviso por hábito y día, nombre
     actualizado, fecha efectiva, fallo con liberación de la reclamación y ausencia de cambios en
     las estadísticas; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 5.2:** Implementar el servicio de entrega
+- [x] **Tarea 5.2:** Implementar el servicio de entrega
   - **RF:** RF-2.1, RF-2.4, RF-2.6, RF-2.7, RF-2.8, RF-3.2, RF-3.3, RF-4.5, RFN-7
   - **Hecho cuando:** El servicio recoge vencidos, reclama, notifica, confirma o libera y
     devuelve un resumen sin depender de Flet; los tests de la tarea 5.1 pasan.
 
-- [ ] **Tarea 5.3:** Escribir los tests del runner periódico
+- [x] **Tarea 5.3:** Escribir los tests del runner periódico
   - **RF:** RF-2.1, RF-2.3, RF-2.10
   - **Hecho cuando:** Los tests verifican la lectura de la base y la hora actual, el resumen de
     ejecución y un fallo controlado del servicio; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 5.4:** Implementar `habits/reminder_runner.py`
+- [x] **Tarea 5.4:** Implementar `habits/reminder_runner.py`
   - **RF:** RF-2.1, RF-2.3, RF-2.10
   - **Hecho cuando:** El módulo puede ejecutarse con una ruta de base de datos, usa la hora local
     y devuelve un código de salida controlado; los tests de la tarea 5.3 pasan.
