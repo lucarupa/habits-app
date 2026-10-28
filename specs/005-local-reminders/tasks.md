@@ -164,23 +164,23 @@
 
 ## Fase 8: Alcance y verificación final
 
-- [ ] **Tarea 8.1:** Escribir la guardia de alcance de la spec 005
+- [x] **Tarea 8.1:** Escribir la guardia de alcance de la spec 005
   - **RF:** RF-2.1, RF-2.7, RF-3.4, RFN-5
   - **Hecho cuando:** Los tests permiten la tabla `reminders` y el runner, y rechazan posponer,
     agrupar, programar por días, enviar por red o modificar registros y estadísticas desde la
     notificación; la suite muestra los fallos esperados si hay infracciones.
 
-- [ ] **Tarea 8.2:** Ajustar el código o las guardias según el resultado
+- [x] **Tarea 8.2:** Ajustar el código o las guardias según el resultado
   - **RF:** RF-2.1, RF-2.7, RF-3.4, RFN-5
   - **Hecho cuando:** La guardia de la tarea 8.1 pasa y las guardias de las specs anteriores
     siguen pasando.
 
-- [ ] **Tarea 8.3:** Ejecutar la suite completa y la cobertura
+- [x] **Tarea 8.3:** Ejecutar la suite completa y la cobertura
   - **RF:** RFN-7, RFN-8
   - **Hecho cuando:** `.venv/bin/python -m pytest -q` pasa sin fallos y la cobertura de
     `reminders.py`, `storage.py`, `reminder_service.py` y `app_state.py` es ≥80 %.
 
-- [ ] **Tarea 8.4:** Verificar los criterios de finalización
+- [x] **Tarea 8.4:** Verificar los criterios de finalización
   - **RF:** Todos
   - **Hecho cuando:** Se comprueba la configuración persistente, el aviso único para pendientes,
     la ausencia de avisos duplicados o retroactivos, el funcionamiento con la app cerrada en

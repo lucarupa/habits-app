@@ -20,7 +20,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 341 pruebas puras + 113 con Flet (454 en `.venv`)
+- **pytest** — 354 pruebas puras + 113 con Flet (467 en `.venv`)
 
 ## Estado de implementación
 
@@ -279,9 +279,11 @@ sin recordatorios.
 
 **Pruebas de recordatorios.** `tests/test_reminders.py`, `tests/test_storage.py`,
 `tests/test_app_state.py`, `tests/test_reminder_service.py`, `tests/test_reminder_runner.py`,
-`tests/test_notifications.py`, `tests/test_reminder_widgets.py`, `tests/test_reminder_flow.py` y
-`tests/test_readme_reminders.py` cubren la lógica, la persistencia, la entrega, el planificador y
-la interfaz. La suite actual suma 341 pruebas puras + 113 con Flet (454 en `.venv`).
+`tests/test_notifications.py`, `tests/test_reminder_widgets.py`, `tests/test_reminder_flow.py`,
+`tests/test_readme_reminders.py`, `tests/test_scope_guard_005.py` y
+`tests/test_final_verification_005.py` cubren la lógica, la persistencia, la entrega, el
+planificador, la interfaz y la verificación final. La suite actual suma 354 pruebas puras +
+113 con Flet (467 en `.venv`).
 
 ## Requisitos
 
@@ -427,9 +429,11 @@ tests/
 ├── test_readme_recovery.py # Tests de la documentación del aviso y la recuperación (4 tests)
 ├── test_readme_reminders.py # Tests de la documentación de los recordatorios (4 tests)
 ├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
+├── test_final_verification_005.py # Criterios de finalización de la spec 005 (9 tests)
 ├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
 ├── test_scope_guard_003.py # Guardia de alcance de la spec 003 (4 tests)
 ├── test_scope_guard_004.py # Guardia de alcance de la spec 004 (3 tests)
+├── test_scope_guard_005.py # Guardia de alcance de la spec 005 (4 tests)
 ├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
 ├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
 ├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
