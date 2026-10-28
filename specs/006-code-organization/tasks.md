@@ -113,23 +113,23 @@
 
 ## Fase 5: Paquete de formularios (`habits/forms/`)
 
-- [ ] **Tarea 5.1:** Migrar los tests del formulario a las nuevas rutas
+- [x] **Tarea 5.1:** Migrar los tests del formulario a las nuevas rutas
   - **RF:** RF-2.1, RF-2.5, RF-5.1, RF-5.3
   - **Hecho cuando:** `tests/test_habit_form.py` y los tests que validan o guardan formularios
     importan desde `habits.forms`, conservan los mismos casos y la suite muestra los fallos
     esperados.
 
-- [ ] **Tarea 5.2:** Crear `habits/forms/models.py`
+- [x] **Tarea 5.2:** Crear `habits/forms/models.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** Los datos del formulario, resultados, constantes e iconos se importan desde
     el nuevo módulo con los mismos valores y textos.
 
-- [ ] **Tarea 5.3:** Crear `habits/forms/validation.py` y `service.py`
+- [x] **Tarea 5.3:** Crear `habits/forms/validation.py` y `service.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** La validación de fechas, nombre e icono y el alta o actualización desde el
     formulario se trasladan sin reescribir reglas ni mensajes, y sus tests pasan.
 
-- [ ] **Tarea 5.4:** Eliminar `habits/habit_form.py` y verificar los formularios
+- [x] **Tarea 5.4:** Eliminar `habits/habit_form.py` y verificar los formularios
   - **RF:** RF-2.5, RF-2.6, RF-2.7, RF-5.1
   - **Hecho cuando:** No queda ninguna referencia a `habits.habit_form`, el paquete no depende de
     Flet ni de widgets y la suite vuelve a pasar.

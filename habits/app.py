@@ -35,16 +35,15 @@ from habits.state.models import (
     StatCard,
     format_date_label,
 )
-from habits.habit_form import (
+from habits.forms.models import (
     ICON_CATALOG,
     ICON_LABELS,
     MAX_NAME_LENGTH,
     CreateHabitResult,
     HabitFormData,
     UpdateHabitResult,
-    create_habit_from_form,
-    update_habit_from_form,
 )
+from habits.forms.service import create_habit_from_form, update_habit_from_form
 from habits.notifications import SystemNotifier, SystemScheduler
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,

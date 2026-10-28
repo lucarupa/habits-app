@@ -5,16 +5,16 @@
 Cubre RF-2.2, RF-2.3, RF-2.4, RF-2.5, RF-2.6, RF-2.7, RF-2.9 y RF-2.10.
 """
 
+import ast
 import os
 import tempfile
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
-from habits import habit_form
-from habits.state.loader import load_app_state
 from habits.domain.models import ALLOWED_ICONS, DEFAULT_ICON, Habit
-from habits.habit_form import (
+from habits.forms.models import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,
     ICON_LABELS,
@@ -24,11 +24,16 @@ from habits.habit_form import (
     CreateHabitResult,
     HabitFormData,
     HabitFormResult,
-    create_habit_from_form,
+    UpdateHabitResult,
+)
+from habits.forms.service import create_habit_from_form, update_habit_from_form
+from habits.forms.validation import (
     normalize_icon,
     parse_start_date,
     validate_habit_form,
+    validate_habit_update,
 )
+from habits.state.loader import load_app_state
 from habits.persistence.completions_repo import (
     get_completions_db,
     mark_completed_db,
@@ -41,6 +46,57 @@ from habits.persistence.habits_repo import (
 from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
+
+ROOT = Path(__file__).resolve().parents[1]
+HABITS_DIR = ROOT / "habits"
+LEGACY_MODULE = "habits.habit_form"
+FORBIDDEN_FORM_IMPORTS = {"flet", "habits.app", "habits.ui"}
+
+
+def imported_modules(path: Path) -> list[str]:
+    """Extraer los módulos importados por un archivo Python."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    modules: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.append(node.module)
+
+    return modules
+
+
+class TestFormsPackage:
+    """Verificación del paquete de formularios — Tarea 5.4."""
+
+    def test_legacy_habit_form_module_is_gone(self):
+        """RF-2.5, RF-5.1: el módulo monolítico y sus imports desaparecen."""
+        assert not (HABITS_DIR / "habit_form.py").exists()
+
+        offenders = [
+            path.relative_to(ROOT).as_posix()
+            for directory in ("habits", "scripts", "tests")
+            for path in sorted((ROOT / directory).rglob("*.py"))
+            if LEGACY_MODULE in imported_modules(path)
+        ]
+
+        assert offenders == []
+
+    def test_forms_package_does_not_import_flet_or_widgets(self):
+        """RF-2.6, RF-2.7: los formularios no dependen de la interfaz."""
+        offenders = [
+            f"{path.name}: {module}"
+            for path in sorted((HABITS_DIR / "forms").glob("*.py"))
+            for module in imported_modules(path)
+            if any(
+                module == forbidden or module.startswith(f"{forbidden}.")
+                for forbidden in FORBIDDEN_FORM_IMPORTS
+            )
+        ]
+
+        assert offenders == []
+
 
 
 class TestIconCatalog:
@@ -303,7 +359,7 @@ class TestValidateHabitUpdate:
         """RF-2.5: Sin fecha nueva se conserva la fecha actual del hábito."""
         habit = self._habit()
 
-        result = habit_form.validate_habit_update(
+        result = validate_habit_update(
             habit,
             HabitFormData(
                 name="Python avanzado",
@@ -323,7 +379,7 @@ class TestValidateHabitUpdate:
         future = (TODAY + timedelta(days=1)).strftime("%d/%m/%Y")
 
         with pytest.raises(ValueError, match="futura"):
-            habit_form.validate_habit_update(
+            validate_habit_update(
                 habit,
                 HabitFormData(name="Python", start_date=future),
                 today=TODAY,
@@ -334,7 +390,7 @@ class TestValidateHabitUpdate:
         habit = self._habit()
 
         for icon in (None, ""):
-            result = habit_form.validate_habit_update(
+            result = validate_habit_update(
                 habit,
                 HabitFormData(name="Python", icon=icon),
                 today=TODAY,
@@ -348,7 +404,7 @@ class TestValidateHabitUpdate:
 
         for name in ("", "   "):
             with pytest.raises(ValueError, match=NAME_REQUIRED_ERROR):
-                habit_form.validate_habit_update(
+                validate_habit_update(
                     habit,
                     HabitFormData(name=name),
                     today=TODAY,
@@ -385,7 +441,7 @@ class TestUpdateHabitFromForm:
         """RF-2.9, RF-2.14: Guarda los cambios y devuelve el resultado."""
         habit = self._stored_habit()
 
-        result = habit_form.update_habit_from_form(
+        result = update_habit_from_form(
             habit,
             HabitFormData(
                 name="Python avanzado",
@@ -396,7 +452,7 @@ class TestUpdateHabitFromForm:
             today=TODAY,
         )
 
-        assert result == habit_form.UpdateHabitResult(
+        assert result == UpdateHabitResult(
             habit_id=habit.id,
             name="Python avanzado",
             start_date=date(2024, 10, 1),
@@ -415,7 +471,7 @@ class TestUpdateHabitFromForm:
         mark_completed_db(habit.id, "2024-10-20", self.db_path)
         mark_completed_db(habit.id, "2024-10-21", self.db_path)
 
-        habit_form.update_habit_from_form(
+        update_habit_from_form(
             habit,
             HabitFormData(
                 name="Python avanzado",

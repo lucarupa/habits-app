@@ -18,7 +18,7 @@ import flet as ft
 
 from habits.app import HabitFormDialog
 from habits.domain.models import DEFAULT_ICON, Habit
-from habits.habit_form import (
+from habits.forms.models import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,
     ICON_LABELS,
