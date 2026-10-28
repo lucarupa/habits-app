@@ -58,6 +58,6 @@ class TestReadmeStreakRecovery:
         """La documentación refleja los conteos actuales de la suite."""
         readme = read_readme()
 
-        assert "428 pruebas puras" in readme
+        assert "442 pruebas puras" in readme
         assert "121 con Flet" in readme
-        assert "549 en `.venv`" in readme
+        assert "563 en `.venv`" in readme

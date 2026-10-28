@@ -20,7 +20,7 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 428 pruebas puras + 121 con Flet (549 en `.venv`)
+- **pytest** — 442 pruebas puras + 121 con Flet (563 en `.venv`)
 
 ## Estado de implementación
 
@@ -121,6 +121,19 @@ excluyen del recorrido los directorios generados o de terceros: `__pycache__`, `
 | `habits/reminder_runner.py` | Entrada periódica que ejecuta el planificador del sistema. |
 | `habits/module_size.py` | Medición del límite de tamaño y búsqueda de módulos infractores. |
 
+### Verificación de la reorganización
+
+`tests/test_final_verification_006.py` comprueba que la reorganización conserva los datos y el
+comportamiento: una base existente mantiene hábitos, registros, días recuperados, rachas,
+estadísticas, heatmap y recordatorios; crear, editar, borrar, registrar, el aviso de duplicado
+y la recuperación de rachas siguen funcionando igual; y no cambian el esquema SQLite ni las
+dependencias declaradas en `requirements.txt`.
+
+`tests/test_completion_criteria_006.py` recorre los ocho criterios de finalización: límite de
+250 líneas en todos los módulos, monolíticos sustituidos, imports sin fachadas, guardia que
+lista todos los infractores, cobertura documentada superior al 80 %, comportamiento y textos
+conservados, documentación actualizada y ausencia de dependencias o cambios de esquema. También
+verifica que `tasks.md` no deja ninguna tarea pendiente.
 
 ## Diseño de la interfaz
 
@@ -240,7 +253,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 428 pruebas puras + 121 con Flet (549 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 442 pruebas puras + 121 con Flet (563 en `.venv`).
 
 ## Iconos
 
@@ -338,8 +351,8 @@ sin recordatorios.
 `tests/test_notifications.py`, `tests/test_reminder_widgets.py`, `tests/test_reminder_flow.py`,
 `tests/test_readme_reminders.py`, `tests/test_scope_guard_005.py` y
 `tests/test_final_verification_005.py` cubren la lógica, la persistencia, la entrega, el
-planificador, la interfaz y la verificación final. La suite actual suma 428 pruebas puras +
-121 con Flet (549 en `.venv`).
+planificador, la interfaz y la verificación final. La suite actual suma 442 pruebas puras +
+121 con Flet (563 en `.venv`).
 
 ## Requisitos
 
@@ -409,9 +422,10 @@ Con cobertura:
 pytest --cov=habits --cov-report=term-missing
 ```
 
-Cobertura actual de los paquetes con lógica: `domain/`, `persistence/`, `state/`, `forms/`,
-`registration.py`, `reminders.py`, `reminder_service.py` y `reminder_runner.py`. La interfaz
-(`ui/` y `app.py`) se valida con tests de widgets y comprobación manual.
+Cobertura actual (Tarea 9.1) de los módulos con lógica: `domain/` 99 %, `persistence/` 99 %,
+`state/` 99 %, `forms/` 97 % y `module_size.py` 98 %; total del conjunto 99 %. Todos superan
+el mínimo del 80 % de la constitución. La interfaz (`ui/` y `app.py`) se valida con tests de
+widgets y comprobación manual.
 
 ## Generar ejecutable de producción
 

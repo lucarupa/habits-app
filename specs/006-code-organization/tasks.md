@@ -215,20 +215,20 @@
 
 ## Fase 9: Verificación final
 
-- [ ] **Tarea 9.1:** Ejecutar la suite completa y la cobertura
+- [x] **Tarea 9.1:** Ejecutar la suite completa y la cobertura
   - **RF:** RF-5.1, RF-5.5, RFN-7
   - **Hecho cuando:** `.venv/bin/python -m pytest -q` pasa sin fallos y la cobertura de los
     módulos de `domain`, `persistence`, `state`, `forms` y `module_size` alcanza al menos el
     80 %.
 
-- [ ] **Tarea 9.2:** Verificar la conservación del comportamiento y los datos
+- [x] **Tarea 9.2:** Verificar la conservación del comportamiento y los datos
   - **RF:** RF-5.2, RF-5.3, RF-5.4, RF-5.6
   - **Hecho cuando:** Se comprueba que una base existente conserva hábitos, registros, días
     recuperados, rachas, estadísticas y heatmap; que creación, edición, borrado, registro, aviso
     de duplicado y recuperación de racha funcionan igual; y que no hay dependencias ni cambios
     de esquema.
 
-- [ ] **Tarea 9.3:** Verificar los criterios de finalización
+- [x] **Tarea 9.3:** Verificar los criterios de finalización
   - **RF:** Todos
   - **Hecho cuando:** Todos los módulos de producción cumplen el límite, no quedan módulos
     monolíticos ni fachadas, las guardias de tamaño y arquitectura pasan, la documentación está
