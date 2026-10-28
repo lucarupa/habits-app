@@ -20,7 +20,7 @@ HABITS_DIR = ROOT / "habits"
 REMINDERS_PATH = HABITS_DIR / "reminders.py"
 SERVICE_PATH = HABITS_DIR / "reminder_service.py"
 RUNNER_PATH = HABITS_DIR / "reminder_runner.py"
-NOTIFICATIONS_PATH = HABITS_DIR / "notifications.py"
+NOTIFICATIONS_DIR = HABITS_DIR / "notifications"
 
 ALLOWED_TABLES = {"habits", "completions", "reminders"}
 FORBIDDEN_TABLES = {
@@ -188,7 +188,7 @@ def test_scope_guard_rejects_snooze_groups_and_per_day_schedules():
     """Fuera de alcance: sin posponer, agrupar ni programar por días."""
     offenders: list[str] = []
 
-    for path in sorted(HABITS_DIR.glob("*.py")):
+    for path in sorted(HABITS_DIR.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(
@@ -211,7 +211,7 @@ def test_scope_guard_rejects_network_delivery():
     """RFN-5: los avisos son locales; no se envía nada por red."""
     offenders: list[str] = []
 
-    for path in sorted(HABITS_DIR.glob("*.py")):
+    for path in sorted(HABITS_DIR.rglob("*.py")):
         for name in imported_names(path):
             if name in FORBIDDEN_NETWORK_MODULES:
                 offenders.append(f"{path.name}: {name}")
@@ -222,8 +222,9 @@ def test_scope_guard_rejects_network_delivery():
 def test_scope_guard_does_not_modify_records_from_notifications():
     """RF-2.8, RF-3.4: avisar no toca registros, estadísticas ni hábitos."""
     offenders: list[str] = []
+    notification_paths = sorted(NOTIFICATIONS_DIR.glob("*.py"))
 
-    for path in (REMINDERS_PATH, SERVICE_PATH, RUNNER_PATH, NOTIFICATIONS_PATH):
+    for path in (REMINDERS_PATH, SERVICE_PATH, RUNNER_PATH, *notification_paths):
         for name in imported_names(path):
             if name in FORBIDDEN_WRITE_FUNCTIONS:
                 offenders.append(f"{path.name}: {name}")

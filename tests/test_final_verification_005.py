@@ -22,16 +22,16 @@ import tempfile
 from datetime import date, datetime
 
 from habits.state.loader import load_app_state
-from habits.notifications import (
+from habits.notifications.models import (
     EXECUTION_FAILED_MESSAGE,
     PERMISSION_DENIED_MESSAGE,
     SCHEDULER_INSTALL_FAILED_MESSAGE,
     SCHEDULER_REMOVE_FAILED_MESSAGE,
     UNSUPPORTED_PLATFORM_MESSAGE,
     NotificationResult,
-    SystemNotifier,
-    SystemScheduler,
 )
+from habits.notifications.notifier import SystemNotifier
+from habits.notifications.scheduler import SystemScheduler
 from habits.reminder_runner import run_check
 from habits.reminder_service import DeliverySummary, deliver_due_reminders
 from habits.reminders import (

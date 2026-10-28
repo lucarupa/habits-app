@@ -9,18 +9,19 @@ ejecución a resultados controlados en español, usando un ejecutor simulado.
 import plistlib
 import subprocess
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
-from habits.notifications import (
+from habits.notifications.models import (
     NOTIFICATION_TITLE,
     SCHEDULER_TASK_LABEL,
     SCHEDULER_TASK_NAME,
     NotificationResult,
     SchedulerResult,
-    SystemNotifier,
-    SystemScheduler,
 )
+from habits.notifications.notifier import SystemNotifier
+from habits.notifications.scheduler import SystemScheduler
 from habits.reminders import reminder_message
 
 
@@ -199,6 +200,15 @@ class TestScheduler:
     RF-2.3, RF-3.4 y RF-4.4: una única tarea periódica por plataforma, con
     actualización idempotente y errores controlados en español.
     """
+
+    def test_scheduler_defaults_project_dir_to_repository_root(self, tmp_path):
+        """RF-2.3: sin directorio inyectado, el runner trabaja en la raíz."""
+        scheduler = SystemScheduler(
+            platform="darwin",
+            launch_agents_dir=tmp_path,
+        )
+
+        assert Path(scheduler.project_dir) == Path(__file__).resolve().parents[1]
 
     def test_scheduler_installs_single_minute_task_on_windows(self):
         """RF-2.3: Windows crea una tarea `schtasks` cada minuto."""

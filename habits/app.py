@@ -14,7 +14,9 @@ from habits.forms.models import (
     CreateHabitResult,
     UpdateHabitResult,
 )
-from habits.notifications import SystemNotifier, SystemScheduler
+from habits.notifications.models import SCHEDULER_INSTALL_FAILED_MESSAGE
+from habits.notifications.notifier import SystemNotifier
+from habits.notifications.scheduler import SystemScheduler
 from habits.persistence.completions_repo import mark_recovered_days_db
 from habits.persistence.habits_repo import delete_habit_db
 from habits.persistence.reminders_repo import get_reminder_db, save_reminder_db
@@ -35,10 +37,6 @@ from habits.ui.sidebar import Sidebar
 from habits.ui.stats import HabitStatsCards
 
 REMINDER_ACTIVATION_ERROR = "No se pudo activar el recordatorio."
-REMINDER_SCHEDULER_ERROR = (
-    "No se pudo programar el recordatorio en el sistema. "
-    "La configuración anterior se conserva."
-)
 
 
 def main(
@@ -141,7 +139,7 @@ def main(
         sync_result = scheduler.sync(
             db_path, has_active_reminders=has_active_reminders())
         if not sync_result.ok:
-            show_warning(sync_result.message or REMINDER_SCHEDULER_ERROR)
+            show_warning(sync_result.message or SCHEDULER_INSTALL_FAILED_MESSAGE)
 
     def show_warning(message: str) -> None:
         """Mostrar un aviso en español sin cerrar la aplicación."""
@@ -166,7 +164,7 @@ def main(
             db_path, has_active_reminders=has_active_reminders()
         )
         if not result.ok:
-            show_warning(result.message or REMINDER_SCHEDULER_ERROR)
+            show_warning(result.message or SCHEDULER_INSTALL_FAILED_MESSAGE)
 
     def on_reminder_saved(
         habit_id: int, enabled: bool, reminder_time: str | None
@@ -206,7 +204,7 @@ def main(
         sync_result = scheduler.sync(
             db_path, has_active_reminders=has_active_after(habit_id, enabled))
         if not sync_result.ok:
-            show_warning(sync_result.message or REMINDER_SCHEDULER_ERROR)
+            show_warning(sync_result.message or SCHEDULER_INSTALL_FAILED_MESSAGE)
             return
 
         save_reminder_db(habit_id, enabled, reminder_time,

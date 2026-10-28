@@ -21,7 +21,7 @@ from habits.app import main
 from habits.ui.delete_dialog import DeleteHabitDialog
 from habits.ui.reminder_dialog import ReminderDialog
 from habits.state.app_state import AppState
-from habits.notifications import (
+from habits.notifications.models import (
     NotificationResult,
     SchedulerResult,
 )

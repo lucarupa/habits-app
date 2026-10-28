@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
-from habits.notifications import NotificationResult
+from habits.notifications.models import NotificationResult
 from habits.reminders import reminder_message
 from habits.persistence.reminders_repo import (
     claim_reminder_delivery_db,

@@ -12,7 +12,7 @@ import tempfile
 from datetime import datetime, timedelta
 
 from habits.state.loader import load_app_state
-from habits.notifications import NotificationResult
+from habits.notifications.models import NotificationResult
 from habits.reminder_service import DeliverySummary, deliver_due_reminders
 from habits.reminders import reminder_message
 from habits.persistence.completions_repo import mark_completed_db

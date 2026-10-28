@@ -11,7 +11,7 @@ import sys
 from collections.abc import Sequence
 from datetime import datetime
 
-from habits.notifications import SystemNotifier
+from habits.notifications.notifier import SystemNotifier
 from habits.reminder_service import (
     DeliverySummary,
     Notifier,

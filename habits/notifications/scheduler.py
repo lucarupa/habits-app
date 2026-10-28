@@ -1,228 +1,28 @@
 # spec: 005-local-reminders
-"""Adaptador de notificaciones del sistema operativo.
+# spec: 006-code-organization
+"""Planificador que instala una única tarea periódica del sistema.
 
-Construye y ejecuta los comandos de macOS y Windows para mostrar el aviso de
-un recordatorio, sin depender de Flet. Los fallos se traducen a resultados
-controlados en español y el ejecutor de comandos es inyectable para poder
-probarse sin enviar notificaciones reales (RF-2.3, RF-4.1 a RF-4.3, RFN-5).
+En macOS usa un agente `launchd` con `StartInterval` y en Windows una tarea
+`schtasks` cada minuto. La tarea ejecuta `habits.reminder_runner` con la ruta
+de la base de datos (RF-2.3, RF-3.4 y RF-4.4).
 """
 
-from collections.abc import Callable
-from dataclasses import dataclass
 import os
 from pathlib import Path
 import plistlib
 import subprocess
 import sys
 
-NOTIFICATION_TITLE = "Hábitos de estudio"
-
-SCHEDULER_TASK_LABEL = "com.habits.reminders"
-SCHEDULER_TASK_NAME = "HabitsReminders"
-SCHEDULER_START_INTERVAL_SECONDS = 60
-
-PERMISSION_DENIED_MESSAGE = (
-    "No se pudo enviar la notificación: el sistema denegó el permiso. "
-    "Habilita las notificaciones de «Hábitos de estudio» en los ajustes del "
-    "sistema y vuelve a intentarlo."
+from habits.notifications.common import Runner, run_command
+from habits.notifications.models import (
+    SCHEDULER_INSTALL_FAILED_MESSAGE,
+    SCHEDULER_REMOVE_FAILED_MESSAGE,
+    SCHEDULER_START_INTERVAL_SECONDS,
+    SCHEDULER_TASK_LABEL,
+    SCHEDULER_TASK_NAME,
+    UNSUPPORTED_SCHEDULER_PLATFORM_MESSAGE,
+    SchedulerResult,
 )
-EXECUTION_FAILED_MESSAGE = (
-    "No se pudo enviar la notificación del recordatorio. "
-    "La aplicación seguirá funcionando con normalidad."
-)
-UNSUPPORTED_PLATFORM_MESSAGE = (
-    "Los recordatorios solo están disponibles en macOS y Windows."
-)
-SCHEDULER_INSTALL_FAILED_MESSAGE = (
-    "No se pudo programar el recordatorio en el sistema. "
-    "La configuración anterior se conserva."
-)
-SCHEDULER_REMOVE_FAILED_MESSAGE = (
-    "No se pudo quitar el recordatorio del sistema. "
-    "La aplicación seguirá funcionando con normalidad."
-)
-UNSUPPORTED_SCHEDULER_PLATFORM_MESSAGE = (
-    "Los recordatorios automáticos solo están disponibles en macOS y Windows."
-)
-
-_PERMISSION_MARKERS = (
-    "permission",
-    "not allowed",
-    "denied",
-    "denegado",
-    "no permitido",
-    "0x80070005",
-)
-
-Runner = Callable[[list[str]], subprocess.CompletedProcess]
-
-
-@dataclass(frozen=True)
-class NotificationResult:
-    """Resultado de intentar mostrar una notificación.
-
-    Atributos:
-        ok: Indica si el sistema aceptó la notificación.
-        message: Explicación en español cuando hay un fallo; vacía si fue bien.
-        permission_denied: Indica si el fallo se debe a permisos del sistema.
-    """
-
-    ok: bool
-    message: str = ""
-    permission_denied: bool = False
-
-
-@dataclass(frozen=True)
-class SchedulerResult:
-    """Resultado de sincronizar la tarea periódica del sistema.
-
-    Atributos:
-        ok: Indica si la tarea quedó instalada, actualizada o retirada.
-        message: Explicación en español cuando hay un fallo; vacía si fue bien.
-    """
-
-    ok: bool
-    message: str = ""
-
-
-def _run_command(command: list[str]) -> subprocess.CompletedProcess:
-    """Ejecutar un comando del sistema y capturar su salida."""
-    return subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _escape_applescript(value: str) -> str:
-    """Escapar un texto para incluirlo en una cadena de AppleScript."""
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _escape_powershell(value: str) -> str:
-    """Escapar un texto para incluirlo en una cadena de PowerShell."""
-    normalized = value.replace("\r", " ").replace("\n", " ")
-    return normalized.replace("'", "''")
-
-
-def _is_permission_error(stderr: str) -> bool:
-    """Indicar si la salida del sistema sugiere un permiso denegado."""
-    normalized = stderr.lower()
-    return any(marker in normalized for marker in _PERMISSION_MARKERS)
-
-
-class SystemNotifier:
-    """Notificador que usa los comandos nativos de macOS y Windows.
-
-    Args:
-        platform: Identificador de plataforma; por defecto, `sys.platform`.
-        runner: Ejecutor inyectable que recibe el comando y devuelve el
-            resultado del proceso. Si se omite, se usa `subprocess.run`.
-    """
-
-    def __init__(
-        self,
-        platform: str | None = None,
-        runner: Runner | None = None,
-    ) -> None:
-        self.platform = platform if platform is not None else sys.platform
-        self._runner = runner or _run_command
-
-    def build_command(self, message: str) -> list[str]:
-        """Construir el comando nativo que muestra la notificación.
-
-        Args:
-            message: Texto en español que se mostrará al usuario.
-
-        Returns:
-            El comando listo para ejecutarse en la plataforma actual.
-
-        Raises:
-            ValueError: Si la plataforma no es macOS ni Windows (RFN-5).
-        """
-        if self.platform == "darwin":
-            return self._macos_command(message)
-        if self.platform in {"win32", "cygwin", "msys"}:
-            return self._windows_command(message)
-        raise ValueError(UNSUPPORTED_PLATFORM_MESSAGE)
-
-    def notify(self, message: str) -> NotificationResult:
-        """Mostrar una notificación y devolver el resultado del sistema.
-
-        La llamada es síncrona: espera a que el sistema responda para que la
-        activación de un recordatorio solo se confirme si la notificación de
-        prueba se entregó (RF-4.1). Un permiso denegado, un fallo de ejecución
-        o una plataforma no compatible se traducen a un resultado en español
-        sin propagar excepciones (RF-4.2, RF-4.3 y RFN-5).
-
-        Args:
-            message: Texto en español que se mostrará al usuario.
-
-        Returns:
-            Un NotificationResult con el desenlace del envío.
-        """
-        try:
-            command = self.build_command(message)
-        except ValueError:
-            return NotificationResult(
-                ok=False,
-                message=UNSUPPORTED_PLATFORM_MESSAGE,
-            )
-
-        try:
-            result = self._runner(command)
-        except OSError:
-            return NotificationResult(
-                ok=False,
-                message=EXECUTION_FAILED_MESSAGE,
-            )
-
-        if result.returncode == 0:
-            return NotificationResult(ok=True)
-
-        stderr = result.stderr or ""
-        if _is_permission_error(stderr):
-            return NotificationResult(
-                ok=False,
-                message=PERMISSION_DENIED_MESSAGE,
-                permission_denied=True,
-            )
-
-        return NotificationResult(
-            ok=False,
-            message=EXECUTION_FAILED_MESSAGE,
-        )
-
-    def _macos_command(self, message: str) -> list[str]:
-        """Construir el comando `osascript` de macOS."""
-        script = (
-            f'display notification "{_escape_applescript(message)}" '
-            f'with title "{_escape_applescript(NOTIFICATION_TITLE)}"'
-        )
-        return ["osascript", "-e", script]
-
-    def _windows_command(self, message: str) -> list[str]:
-        """Construir el comando PowerShell de Windows."""
-        title = _escape_powershell(NOTIFICATION_TITLE)
-        body = _escape_powershell(message)
-        script = (
-            "[Windows.UI.Notifications.ToastNotificationManager, "
-            "Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; "
-            "$template = [Windows.UI.Notifications.ToastNotificationManager]::"
-            "GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::"
-            "ToastText02); "
-            "$texts = $template.GetElementsByTagName('text'); "
-            "$texts.Item(0).AppendChild("
-            f"$template.CreateTextNode('{title}')) > $null; "
-            "$texts.Item(1).AppendChild("
-            f"$template.CreateTextNode('{body}')) > $null; "
-            "$toast = [Windows.UI.Notifications.ToastNotification]::new("
-            "$template); "
-            "[Windows.UI.Notifications.ToastNotificationManager]::"
-            f"CreateToastNotifier('{title}').Show($toast)"
-        )
-        return ["powershell", "-NoProfile", "-NonInteractive", "-Command", script]
 
 
 class SystemScheduler:
@@ -256,12 +56,12 @@ class SystemScheduler:
         uid: int | None = None,
     ) -> None:
         self.platform = platform if platform is not None else sys.platform
-        self._runner = runner or _run_command
+        self._runner = runner or run_command
         self.python_executable = str(python_executable or sys.executable)
         self.project_dir = (
             str(project_dir)
             if project_dir is not None
-            else str(Path(__file__).resolve().parents[1])
+            else str(Path(__file__).resolve().parents[2])
         )
         self.launch_agents_dir = (
             Path(launch_agents_dir)

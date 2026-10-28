@@ -10,7 +10,7 @@ import os
 import tempfile
 from datetime import datetime
 
-from habits.notifications import NotificationResult
+from habits.notifications.models import NotificationResult
 from habits.reminder_runner import main, run_check
 from habits.reminder_service import DeliverySummary
 from habits.persistence.habits_repo import create_habit_db

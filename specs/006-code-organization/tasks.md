@@ -171,25 +171,25 @@
 
 ## Fase 7: Guardias de arquitectura y de tamaño
 
-- [ ] **Tarea 7.1:** Escribir los tests de arquitectura
+- [x] **Tarea 7.1:** Escribir los tests de arquitectura
   - **RF:** RF-2.2, RF-2.5, RF-2.6, RFN-6
   - **Hecho cuando:** Los tests comprueban que dominio, persistencia y estado no importan Flet,
     que la UI no importa SQLite ni repositorios, que no hay ciclos, que los módulos monolíticos
     ya no existen y que los paquetes nuevos son importables; la suite muestra los fallos
     esperados si hay infracciones.
 
-- [ ] **Tarea 7.2:** Corregir las dependencias detectadas
+- [x] **Tarea 7.2:** Corregir las dependencias detectadas
   - **RF:** RF-2.6, RF-2.7, RFN-6
   - **Hecho cuando:** Los tests de la tarea 7.1 pasan y la separación de capas queda alineada con
     la constitución.
 
-- [ ] **Tarea 7.3:** Activar la guardia global del límite de tamaño
+- [x] **Tarea 7.3:** Activar la guardia global del límite de tamaño
   - **RF:** RF-1.1, RF-1.6, RF-3.1, RF-3.3, RF-3.6
   - **Hecho cuando:** `tests/test_module_size.py` recorre el paquete de producción real, detecta
     automáticamente los módulos nuevos y falla con un único mensaje que lista ruta y conteo de
     todos los infractores.
 
-- [ ] **Tarea 7.4:** Ajustar los módulos que superen el límite
+- [x] **Tarea 7.4:** Ajustar los módulos que superen el límite
   - **RF:** RF-1.1, RF-1.8, RF-2.1
   - **Hecho cuando:** Todos los módulos de producción, incluidos archivos de inicialización y
     subpaquetes, tienen 250 líneas con contenido o menos, y la guardia global pasa.

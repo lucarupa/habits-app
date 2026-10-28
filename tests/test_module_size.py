@@ -20,6 +20,7 @@ from habits.module_size import (
 )
 
 LIMIT = 250
+PRODUCTION_DIR = Path(__file__).resolve().parents[1] / "habits"
 
 
 def source_with_content_lines(count: int) -> str:
@@ -261,6 +262,21 @@ class TestOversizedModulesMessage:
         assert f"{LIMIT + 50} líneas" in message
         assert "persistence/huge.py" in message
         assert f"{LIMIT + 1} líneas" in message
+
+
+class TestProductionPackageGuard:
+    """Guardia global sobre el paquete de producción real — Tarea 7.3."""
+
+    def test_production_package_respects_content_line_limit(self):
+        """RF-1.1, RF-1.6, RF-3.1, RF-3.3, RF-3.6: guardia global activa."""
+        ensure_modules_within_limit(PRODUCTION_DIR)
+
+    def test_production_guard_lists_every_offender_in_one_message(self):
+        """RF-3.3, RF-3.6: un único mensaje con ruta y conteo de cada infractor."""
+        offenders = find_oversized_modules(PRODUCTION_DIR)
+
+        assert offenders == [], format_oversized_modules_message(offenders)
+
 
 
 

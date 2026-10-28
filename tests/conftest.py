@@ -14,7 +14,7 @@ class _SilentNotifier:
     """Notificador que siempre confirma la entrega."""
 
     def notify(self, message: str):
-        from habits.notifications import NotificationResult
+        from habits.notifications.models import NotificationResult
 
         return NotificationResult(ok=True)
 
@@ -23,7 +23,7 @@ class _SilentScheduler:
     """Planificador que siempre confirma la sincronización."""
 
     def sync(self, db_path: str, *, has_active_reminders: bool):
-        from habits.notifications import SchedulerResult
+        from habits.notifications.models import SchedulerResult
 
         return SchedulerResult(ok=True)
 
