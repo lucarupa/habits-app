@@ -18,8 +18,9 @@ from habits.persistence.schema import init_db
 
 ROOT = Path(__file__).resolve().parents[1]
 HABITS_DIR = ROOT / "habits"
-APP_PATH = HABITS_DIR / "app.py"
 PERSISTENCE_DIR = HABITS_DIR / "persistence"
+DETAIL_HEADER_PATH = HABITS_DIR / "ui" / "detail_header.py"
+SIDEBAR_PATH = HABITS_DIR / "ui" / "sidebar.py"
 
 FORBIDDEN_FUNCTION_PARTS = (
     "undo",
@@ -180,7 +181,7 @@ def test_ui_does_not_show_out_of_scope_actions():
     """Fuera de alcance: sin deshacer, archivar, masivo, historial ni avisos."""
     offenders: list[str] = []
 
-    for path in sorted(HABITS_DIR.glob("*.py")):
+    for path in sorted(HABITS_DIR.rglob("*.py")):
         for text in ui_strings(path):
             normalized = text.strip().lower()
             if any(term in normalized for term in FORBIDDEN_UI_TERMS):
@@ -191,9 +192,12 @@ def test_ui_does_not_show_out_of_scope_actions():
 
 def test_edit_and_delete_actions_live_only_in_the_detail_header():
     """RF-1.3, RF-1.4: la barra lateral solo selecciona hábitos."""
-    source = APP_PATH.read_text(encoding="utf-8")
-    header = class_source(source, "HabitDetailHeader")
-    sidebar = class_source(source, "Sidebar")
+    header = class_source(
+        DETAIL_HEADER_PATH.read_text(encoding="utf-8"), "HabitDetailHeader"
+    )
+    sidebar = class_source(
+        SIDEBAR_PATH.read_text(encoding="utf-8"), "Sidebar"
+    )
 
     assert "Editar" in header
     assert "Eliminar" in header

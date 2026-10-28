@@ -18,7 +18,7 @@ from habits.persistence.schema import init_db
 
 ROOT = Path(__file__).resolve().parents[1]
 HABITS_DIR = ROOT / "habits"
-APP_PATH = HABITS_DIR / "app.py"
+RECOVERY_DIALOG_PATH = HABITS_DIR / "ui" / "recovery_dialog.py"
 
 FORBIDDEN_TABLES = {
     "recovered_days",
@@ -155,7 +155,7 @@ def test_scope_guard_rejects_manual_gap_selection():
     """RF-2.18: no se eligen días concretos ni se recuperan huecos largos."""
     offenders: list[str] = []
 
-    for path in sorted(HABITS_DIR.glob("*.py")):
+    for path in sorted(HABITS_DIR.rglob("*.py")):
         for text in ui_strings(path):
             normalized = text.strip().lower()
             if any(term in normalized for term in FORBIDDEN_UI_TERMS):
@@ -163,7 +163,7 @@ def test_scope_guard_rejects_manual_gap_selection():
 
     assert offenders == []
 
-    source = APP_PATH.read_text(encoding="utf-8")
+    source = RECOVERY_DIALOG_PATH.read_text(encoding="utf-8")
     dialog = class_source(source, "StreakRecoveryDialog")
 
     assert "Checkbox" not in dialog
@@ -175,7 +175,7 @@ def test_scope_guard_rejects_undo_and_archive_features():
     """Fuera de alcance: sin deshacer ni archivar; los avisos son de la spec 005."""
     offenders: list[str] = []
 
-    for path in sorted(HABITS_DIR.glob("*.py")):
+    for path in sorted(HABITS_DIR.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(

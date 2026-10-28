@@ -16,7 +16,9 @@ pytest.importorskip("flet")
 
 import flet as ft
 
-from habits.app import DeleteHabitDialog, HabitFormDialog, main
+from habits.app import main
+from habits.ui.delete_dialog import DeleteHabitDialog
+from habits.ui.form_dialog import HabitFormDialog
 from habits.state.models import EMPTY_SIDEBAR_MESSAGE
 from habits.persistence.completions_repo import (
     get_completions_db,

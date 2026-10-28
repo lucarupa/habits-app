@@ -18,14 +18,12 @@ pytest.importorskip("flet")
 from flet.controls.base_control import BaseControl
 from flet.controls.object_patch import ObjectPatch
 
-from habits.app import (
-    ActivityHeatmap,
-    EmptyDetailPanel,
-    HabitDetailHeader,
-    HabitStatsCards,
-    Sidebar,
-    TodayRegistrationPanel,
-)
+from habits.ui.detail_header import HabitDetailHeader
+from habits.ui.empty import EmptyDetailPanel
+from habits.ui.heatmap import ActivityHeatmap
+from habits.ui.registration_panel import TodayRegistrationPanel
+from habits.ui.sidebar import Sidebar
+from habits.ui.stats import HabitStatsCards
 from habits.state.app_state import AppState
 from habits.state.loader import load_app_state
 from habits.persistence.completions_repo import mark_completed_db

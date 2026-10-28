@@ -19,7 +19,7 @@ pytest.importorskip("flet")
 
 import flet as ft
 
-from habits.app import HabitDetailHeader
+from habits.ui.detail_header import HabitDetailHeader
 from habits.state.app_state import AppState
 from habits.state.loader import load_app_state
 from habits.persistence.habits_repo import create_habit_db, update_habit_db
@@ -230,7 +230,7 @@ class TestReminderDialog:
         on_save=None,
     ):
         """Abrir el diálogo para el hábito de prueba."""
-        from habits.app import ReminderDialog
+        from habits.ui.reminder_dialog import ReminderDialog
 
         state = load_app_state(self.db_path, today=TODAY)
         dialog = ReminderDialog(self.page, on_save=on_save)

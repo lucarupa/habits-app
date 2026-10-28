@@ -14,7 +14,10 @@ pytest.importorskip("flet")
 
 import flet as ft
 
-from habits.app import ActivityHeatmap, Sidebar, TodayRegistrationPanel, main
+from habits.app import main
+from habits.ui.heatmap import ActivityHeatmap
+from habits.ui.registration_panel import TodayRegistrationPanel
+from habits.ui.sidebar import Sidebar
 from habits.state.app_state import AppState
 from habits.state.loader import load_app_state
 from habits.registration import (
@@ -289,7 +292,7 @@ class TestStreakRecoveryDialog:
 
     def test_recovery_dialog_shows_name_and_day_count(self):
         """RF-2.4: el diálogo muestra el hábito y cuántos días se recuperan."""
-        from habits.app import StreakRecoveryDialog
+        from habits.ui.recovery_dialog import StreakRecoveryDialog
 
         dialog = StreakRecoveryDialog(self.page)
 
@@ -305,7 +308,7 @@ class TestStreakRecoveryDialog:
 
     def test_recovery_dialog_warns_about_statistics(self):
         """RF-2.5: advierte de que cuentan para la racha, no para los días."""
-        from habits.app import StreakRecoveryDialog
+        from habits.ui.recovery_dialog import StreakRecoveryDialog
 
         dialog = StreakRecoveryDialog(self.page)
 
@@ -318,7 +321,7 @@ class TestStreakRecoveryDialog:
 
     def test_recovery_dialog_offers_cancel_and_recover_actions(self):
         """RF-2.6: el diálogo ofrece “Cancelar” y “Recuperar”."""
-        from habits.app import StreakRecoveryDialog
+        from habits.ui.recovery_dialog import StreakRecoveryDialog
 
         dialog = StreakRecoveryDialog(self.page)
         dialog.open(self.habit, self.dates)
@@ -329,7 +332,7 @@ class TestStreakRecoveryDialog:
 
     def test_recovery_dialog_cancel_keeps_state(self):
         """RF-2.7: cancelar cierra sin notificar ni marcar días."""
-        from habits.app import StreakRecoveryDialog
+        from habits.ui.recovery_dialog import StreakRecoveryDialog
 
         confirmed: list[tuple] = []
         dialog = StreakRecoveryDialog(
@@ -346,7 +349,7 @@ class TestStreakRecoveryDialog:
 
     def test_recovery_dialog_confirm_notifies_habit_and_dates(self):
         """RF-2.8: confirmar notifica el hábito y las fechas del hueco."""
-        from habits.app import StreakRecoveryDialog
+        from habits.ui.recovery_dialog import StreakRecoveryDialog
 
         confirmed: list[tuple] = []
         dialog = StreakRecoveryDialog(

@@ -136,35 +136,35 @@
 
 ## Fase 6: Paquete de interfaz (`habits/ui/`)
 
-- [ ] **Tarea 6.1:** Migrar los tests de widgets a las nuevas rutas
+- [x] **Tarea 6.1:** Migrar los tests de widgets a las nuevas rutas
   - **RF:** RF-2.1, RF-2.4, RF-2.5, RF-5.1, RF-5.4
   - **Hecho cuando:** Los tests de widgets, diálogos y flujos importan cada control desde
     `habits.ui`, conservan sus aserciones sobre textos, callbacks y estructura y la suite muestra
     los fallos esperados.
 
-- [ ] **Tarea 6.2:** Crear `habits/ui/common.py` y `page.py`
+- [x] **Tarea 6.2:** Crear `habits/ui/common.py` y `page.py`
   - **RF:** RF-2.2, RF-2.4, RF-5.3, RF-5.4
   - **Hecho cuando:** Los iconos, etiquetas, formatos visuales y la configuración de página se
     importan desde los nuevos módulos con el mismo comportamiento observable.
 
-- [ ] **Tarea 6.3:** Crear los componentes de la vista principal
+- [x] **Tarea 6.3:** Crear los componentes de la vista principal
   - **RF:** RF-2.1, RF-2.2, RF-2.4, RF-5.4
   - **Hecho cuando:** `Sidebar`, `HabitDetailHeader`, `HabitStatsCards`, `ActivityHeatmap`,
     `TodayRegistrationPanel` y `EmptyDetailPanel` viven en módulos separados, respetan el límite
     y los tests de widgets pasan.
 
-- [ ] **Tarea 6.4:** Crear los diálogos de la interfaz
+- [x] **Tarea 6.4:** Crear los diálogos de la interfaz
   - **RF:** RF-2.1, RF-2.2, RF-2.4, RF-5.4
   - **Hecho cuando:** `HabitFormDialog`, `DeleteHabitDialog` y `StreakRecoveryDialog` se importan
     desde `habits.ui`, mantienen textos, validaciones y callbacks y sus tests pasan.
 
-- [ ] **Tarea 6.5:** Reducir `habits/app.py` a punto de entrada
+- [x] **Tarea 6.5:** Reducir `habits/app.py` a punto de entrada
   - **RF:** RF-2.1, RF-2.2, RF-2.4, RF-2.5, RF-5.4
   - **Hecho cuando:** `app.py` solo conserva `main` y la conexión entre estado, persistencia y
     widgets; se eliminan `CreateHabitView`, `ListHabitsView` y `create_main_view` por no tener
     referencias, y los tests de flujo pasan.
 
-- [ ] **Tarea 6.6:** Verificar la interfaz completa
+- [x] **Tarea 6.6:** Verificar la interfaz completa
   - **RF:** RF-2.6, RF-2.7, RF-5.1, RF-5.4
   - **Hecho cuando:** La UI no importa SQLite ni repositorios, no hay ciclos, todos los módulos de
     `habits/ui/` respetan el límite y la suite de widgets y flujos vuelve a pasar.

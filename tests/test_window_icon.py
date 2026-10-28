@@ -7,7 +7,7 @@ import pytest
 
 pytest.importorskip("flet")
 
-from habits.app import APP_ICON_PATH, configure_page
+from habits.ui.page import APP_ICON_PATH, configure_page
 
 
 class FakeWindow:

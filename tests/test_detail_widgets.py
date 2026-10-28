@@ -15,12 +15,10 @@ pytest.importorskip("flet")
 
 import flet as ft
 
-from habits.app import (
-    ActivityHeatmap,
-    HabitDetailHeader,
-    HabitStatsCards,
-    Sidebar,
-)
+from habits.ui.detail_header import HabitDetailHeader
+from habits.ui.heatmap import ActivityHeatmap
+from habits.ui.sidebar import Sidebar
+from habits.ui.stats import HabitStatsCards
 from habits.state.app_state import AppState
 from habits.state.loader import load_app_state
 from habits.state.models import (
@@ -382,7 +380,7 @@ class TestCreateButtonLabels:
 
     def test_empty_panel_button_does_not_repeat_the_plus(self):
         """RF-6.3: el botón muestra “+ Crear hábito” una sola vez."""
-        from habits.app import EmptyDetailPanel
+        from habits.ui.empty import EmptyDetailPanel
 
         panel = EmptyDetailPanel(state=AppState(today=TODAY))
 
@@ -507,7 +505,7 @@ class TestDeleteHabitDialog:
 
     def test_delete_dialog_shows_name_and_warning(self):
         """RF-3.1: El diálogo muestra el nombre y advierte del borrado."""
-        from habits.app import DELETE_WARNING, DeleteHabitDialog
+        from habits.ui.delete_dialog import DELETE_WARNING, DeleteHabitDialog
 
         dialog = DeleteHabitDialog(self.page)
 
@@ -521,7 +519,7 @@ class TestDeleteHabitDialog:
 
     def test_delete_dialog_offers_cancel_and_delete_actions(self):
         """RF-3.2: El diálogo ofrece “Cancelar” y “Eliminar”."""
-        from habits.app import DeleteHabitDialog
+        from habits.ui.delete_dialog import DeleteHabitDialog
 
         dialog = DeleteHabitDialog(self.page)
 
@@ -532,7 +530,7 @@ class TestDeleteHabitDialog:
 
     def test_delete_cancel_keeps_habit_and_selection(self):
         """RF-3.3: Cancelar cierra sin borrar ni notificar."""
-        from habits.app import DeleteHabitDialog
+        from habits.ui.delete_dialog import DeleteHabitDialog
 
         confirmed: list[int] = []
         dialog = DeleteHabitDialog(self.page, on_confirm=confirmed.append)
@@ -547,7 +545,7 @@ class TestDeleteHabitDialog:
 
     def test_delete_confirm_notifies_the_habit_id(self):
         """RF-3.4, RF-3.5: Solo se notifica al confirmar, con el ID."""
-        from habits.app import DeleteHabitDialog
+        from habits.ui.delete_dialog import DeleteHabitDialog
 
         confirmed: list[int] = []
         dialog = DeleteHabitDialog(self.page, on_confirm=confirmed.append)
