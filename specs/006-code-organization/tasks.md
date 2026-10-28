@@ -2,32 +2,32 @@
 
 ## Fase 1: Medidor de tamaño (`module_size.py`)
 
-- [ ] **Tarea 1.1:** Escribir los tests del conteo de líneas con contenido
+- [x] **Tarea 1.1:** Escribir los tests del conteo de líneas con contenido
   - **RF:** RF-1.2, RF-1.3, RF-1.4, RF-1.5, RF-3.2
   - **Hecho cuando:** Los tests cubren líneas vacías, comentarios completos con y sin sangría,
     código, docstrings, cadenas multilínea, comentarios al final de una instrucción y una línea
     `#` dentro de una docstring; los casos de 250 y 251 líneas quedan definidos y la suite
     muestra los fallos esperados.
 
-- [ ] **Tarea 1.2:** Escribir los tests de búsqueda de módulos sobredimensionados
+- [x] **Tarea 1.2:** Escribir los tests de búsqueda de módulos sobredimensionados
   - **RF:** RF-3.1, RF-3.5, RF-3.6
   - **Hecho cuando:** Los tests usan directorios temporales para comprobar el recorrido
     recursivo, la detección de subpaquetes nuevos, la exclusión de cachés y entornos virtuales y
     el orden estable de los infractores; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 1.3:** Implementar `habits/module_size.py`
+- [x] **Tarea 1.3:** Implementar `habits/module_size.py`
   - **RF:** RF-1.1, RF-1.2, RF-1.3, RF-1.4, RF-1.5, RF-3.1, RF-3.2, RF-3.5, RF-3.6
   - **Hecho cuando:** El módulo cuenta líneas con `tokenize`, localiza módulos de producción de
     forma recursiva, ignora rutas no inspeccionables y devuelve ruta y conteo de cada infractor;
     los tests de las tareas 1.1 y 1.2 pasan.
 
-- [ ] **Tarea 1.4:** Escribir el test unitario del mensaje de infracción
+- [x] **Tarea 1.4:** Escribir el test unitario del mensaje de infracción
   - **RF:** RF-3.3, RF-3.4
   - **Hecho cuando:** Un test comprueba que el mensaje incluye todos los infractores con su ruta
     y conteo en un único texto en español, y que no hay mensaje cuando todos cumplen; la suite
     muestra el fallo esperado.
 
-- [ ] **Tarea 1.5:** Implementar la composición del mensaje y la guardia reutilizable
+- [x] **Tarea 1.5:** Implementar la composición del mensaje y la guardia reutilizable
   - **RF:** RF-3.3, RF-3.4
   - **Hecho cuando:** El módulo ofrece una función que falla con todos los infractores juntos y
     otra que pasa sin advertencias cuando no hay ninguno; el test de la tarea 1.4 pasa.
