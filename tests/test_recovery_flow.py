@@ -19,7 +19,7 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import main
-from habits.app_state import load_app_state
+from habits.state.loader import load_app_state
 from habits.persistence.completions_repo import (
     get_recovered_dates_db,
     mark_completed_db,

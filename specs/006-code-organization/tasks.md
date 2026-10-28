@@ -91,22 +91,22 @@
 
 ## Fase 4: Paquete de estado (`habits/state/`)
 
-- [ ] **Tarea 4.1:** Migrar los tests de estado a las nuevas rutas
+- [x] **Tarea 4.1:** Migrar los tests de estado a las nuevas rutas
   - **RF:** RF-2.1, RF-2.5, RF-5.1, RF-5.3
   - **Hecho cuando:** `tests/test_app_state.py` y los tests que construyen estados importan desde
     `habits.state`, conservan los mismos casos y la suite muestra los fallos esperados.
 
-- [ ] **Tarea 4.2:** Crear `habits/state/models.py`
+- [x] **Tarea 4.2:** Crear `habits/state/models.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** `HabitState`, `SidebarItem`, `DetailHeader`, las tarjetas de estadísticas y
     sus textos se importan desde el nuevo módulo, sin dependencias de Flet ni SQLite.
 
-- [ ] **Tarea 4.3:** Crear `habits/state/app_state.py` y `loader.py`
+- [x] **Tarea 4.3:** Crear `habits/state/app_state.py` y `loader.py`
   - **RF:** RF-2.2, RF-2.3, RF-2.6, RF-5.3
   - **Hecho cuando:** `AppState`, sus vistas derivadas y `load_app_state` se trasladan con las
     mismas entradas, salidas y cálculos, y los tests de estado pasan.
 
-- [ ] **Tarea 4.4:** Eliminar `habits/app_state.py` y verificar el estado
+- [x] **Tarea 4.4:** Eliminar `habits/app_state.py` y verificar el estado
   - **RF:** RF-2.5, RF-2.6, RF-2.7, RF-5.1
   - **Hecho cuando:** No queda ninguna referencia a `habits.app_state`, el paquete de estado no
     importa Flet ni SQLite y la suite vuelve a pasar.

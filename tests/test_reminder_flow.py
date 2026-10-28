@@ -18,7 +18,7 @@ import pytest
 pytest.importorskip("flet")
 
 from habits.app import DeleteHabitDialog, ReminderDialog, main
-from habits.app_state import AppState
+from habits.state.app_state import AppState
 from habits.notifications import (
     NotificationResult,
     SchedulerResult,

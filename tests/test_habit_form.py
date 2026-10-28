@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import pytest
 
 from habits import habit_form
-from habits.app_state import load_app_state
+from habits.state.loader import load_app_state
 from habits.domain.models import ALLOWED_ICONS, DEFAULT_ICON, Habit
 from habits.habit_form import (
     DATE_FORMAT_ERROR,

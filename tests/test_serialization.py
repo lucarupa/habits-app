@@ -26,7 +26,8 @@ from habits.app import (
     Sidebar,
     TodayRegistrationPanel,
 )
-from habits.app_state import AppState, load_app_state
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
 from habits.persistence.completions_repo import mark_completed_db
 from habits.persistence.habits_repo import create_habit_db
 from habits.persistence.schema import init_db

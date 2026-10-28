@@ -15,7 +15,8 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import ActivityHeatmap, Sidebar, TodayRegistrationPanel, main
-from habits.app_state import AppState, load_app_state
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
     REGISTRATION_DUPLICATE_MESSAGE,

@@ -9,7 +9,8 @@ import tempfile
 from datetime import date
 
 from habits import registration as registration_module
-from habits.app_state import AppState, load_app_state
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
 from habits.registration import (
     REGISTRATION_BUTTON_LABEL,
     REGISTRATION_DUPLICATE_MESSAGE,

@@ -8,17 +8,17 @@ import os
 import tempfile
 from datetime import date, timedelta
 
-from habits import app_state
-from habits.app_state import (
+from habits.state import models
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
+from habits.state.models import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
     HEATMAP_TITLE,
     STAT_BEST_STREAK_LABEL,
     STAT_CURRENT_STREAK_LABEL,
     STAT_REGISTERED_DAYS_LABEL,
-    AppState,
     StatCard,
-    load_app_state,
 )
 from habits.persistence.completions_repo import mark_completed_db
 from habits.persistence.habits_repo import create_habit_db
@@ -208,7 +208,7 @@ class TestHeatmapModel:
         assert HEATMAP_TITLE == "Actividad (últimas 5 semanas)"
         assert HEATMAP_COMPLETED_LABEL == "Completado"
         assert HEATMAP_NOT_COMPLETED_LABEL == "No completado"
-        assert app_state.HEATMAP_RECOVERED_LABEL == "Recuperado"
+        assert models.HEATMAP_RECOVERED_LABEL == "Recuperado"
 
 
 class TestRefreshAfterRegistration:

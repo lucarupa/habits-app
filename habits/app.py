@@ -18,7 +18,9 @@ from flet.controls.base_control import skip_field
 from habits.domain.habits import create_habit
 from habits.domain.models import DEFAULT_ICON, Habit, HeatmapDay
 from habits.domain.streaks import calculate_streak
-from habits.app_state import (
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
+from habits.state.models import (
     EMPTY_BUTTON_LABEL,
     EMPTY_SIDEBAR_MESSAGE,
     EMPTY_TITLE,
@@ -29,11 +31,9 @@ from habits.app_state import (
     STAT_BEST_STREAK_LABEL,
     STAT_CURRENT_STREAK_LABEL,
     STAT_REGISTERED_DAYS_LABEL,
-    AppState,
     SidebarItem,
     StatCard,
     format_date_label,
-    load_app_state,
 )
 from habits.habit_form import (
     ICON_CATALOG,

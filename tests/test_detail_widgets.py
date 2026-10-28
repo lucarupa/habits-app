@@ -21,7 +21,9 @@ from habits.app import (
     HabitStatsCards,
     Sidebar,
 )
-from habits.app_state import (
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
+from habits.state.models import (
     HEATMAP_COMPLETED_LABEL,
     HEATMAP_NOT_COMPLETED_LABEL,
     HEATMAP_RECOVERED_LABEL,
@@ -29,8 +31,6 @@ from habits.app_state import (
     STAT_BEST_STREAK_LABEL,
     STAT_CURRENT_STREAK_LABEL,
     STAT_REGISTERED_DAYS_LABEL,
-    AppState,
-    load_app_state,
 )
 from habits.persistence.completions_repo import (
     mark_completed_db,

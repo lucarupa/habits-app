@@ -11,7 +11,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 
-from habits.app_state import load_app_state
+from habits.state.loader import load_app_state
 from habits.notifications import NotificationResult
 from habits.reminder_service import DeliverySummary, deliver_due_reminders
 from habits.reminders import reminder_message

@@ -21,7 +21,7 @@ import subprocess
 import tempfile
 from datetime import date, datetime
 
-from habits.app_state import load_app_state
+from habits.state.loader import load_app_state
 from habits.notifications import (
     EXECUTION_FAILED_MESSAGE,
     PERMISSION_DENIED_MESSAGE,

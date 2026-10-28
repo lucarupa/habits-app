@@ -1,154 +1,36 @@
 # spec: 002-ui-redesign
 # spec: 004-duplicate-warning-streak-recovery
 # spec: 005-local-reminders
-"""Cargador de estado de la aplicación.
+# spec: 006-code-organization
+"""Estado derivado de la aplicación.
 
-Orquesta la lectura de hábitos, fechas y recordatorios desde
-`habits.persistence` y delega los cálculos en `habits.domain` y `reminders.py`.
-No importa Flet ni contiene lógica de presentación (Constitución, principio 3;
-RFN-3).
+Construye las vistas de barra lateral, detalle, estadísticas y heatmap a partir
+de los modelos de estado, sin dependencias de Flet ni SQLite (RF-2.2, RF-2.3 y
+RF-5.3).
 """
 
 from dataclasses import dataclass, field
 from datetime import date
 
 from habits.domain.heatmap import build_activity_heatmap
-from habits.domain.models import Habit, HabitStats, HeatmapDay, RecoverableGap
-from habits.domain.recovery import find_recoverable_gap, get_habit_stats
-from habits.reminders import (
-    DISABLED_LABEL,
-    reminder_label as build_reminder_label,
+from habits.domain.models import HeatmapDay, RecoverableGap
+from habits.domain.recovery import find_recoverable_gap
+from habits.reminders import DISABLED_LABEL
+from habits.state.models import (
+    EMPTY_BUTTON_LABEL,
+    EMPTY_SIDEBAR_MESSAGE,
+    EMPTY_TITLE,
+    HABIT_SUBTITLE,
+    STAT_BEST_STREAK_LABEL,
+    STAT_CURRENT_STREAK_LABEL,
+    STAT_REGISTERED_DAYS_LABEL,
+    DetailHeader,
+    EmptyState,
+    HabitState,
+    SidebarItem,
+    StatCard,
+    format_date_label,
 )
-from habits.persistence.completions_repo import (
-    get_completions_db,
-    get_recovered_dates_db,
-)
-from habits.persistence.habits_repo import list_all_habits_db
-from habits.persistence.reminders_repo import get_reminder_db
-
-HABIT_SUBTITLE = "Hábito de estudio"
-EMPTY_SIDEBAR_MESSAGE = "No hay hábitos aún"
-EMPTY_TITLE = "Crea tu primer hábito para empezar tu racha"
-EMPTY_BUTTON_LABEL = "+ Crear hábito"
-
-STAT_CURRENT_STREAK_LABEL = "Racha actual"
-STAT_BEST_STREAK_LABEL = "Mejor racha"
-STAT_REGISTERED_DAYS_LABEL = "Días registrados"
-
-HEATMAP_TITLE = "Actividad (últimas 5 semanas)"
-HEATMAP_COMPLETED_LABEL = "Completado"
-HEATMAP_NOT_COMPLETED_LABEL = "No completado"
-HEATMAP_RECOVERED_LABEL = "Recuperado"
-
-
-def format_date_label(value: date) -> str:
-    """Formatear una fecha como dd/mm/aaaa para mostrarla al usuario.
-
-    Args:
-        value: Fecha a formatear.
-
-    Returns:
-        La fecha en formato dd/mm/aaaa (RF-7.4).
-    """
-    return value.strftime("%d/%m/%Y")
-
-
-@dataclass
-class HabitState:
-    """Hábito junto con sus estadísticas, fechas y recordatorio.
-
-    Atributos:
-        habit: El hábito de dominio.
-        stats: Racha actual, mejor racha y días registrados.
-        completed_dates: Fechas en las que el hábito se completó, incluidas
-            las recuperadas.
-        recovered_dates: Subconjunto de fechas marcadas como recuperadas.
-        reminder_enabled: Indica si el recordatorio está activo.
-        reminder_time: Hora guardada en formato HH:MM, aunque esté desactivado.
-    """
-
-    habit: Habit
-    stats: HabitStats
-    completed_dates: set[date]
-    recovered_dates: set[date] = field(default_factory=set)
-    reminder_enabled: bool = False
-    reminder_time: str | None = None
-
-    @property
-    def reminder_label(self) -> str:
-        """Devolver la etiqueta visible del recordatorio.
-
-        Returns:
-            “Sin recordatorio” si está desactivado o no tiene hora válida, o
-            “Recordatorio a las HH:MM” si está activo (RF-1.1).
-        """
-        return build_reminder_label(self.reminder_enabled, self.reminder_time)
-
-
-@dataclass(frozen=True)
-class SidebarItem:
-    """Datos que la barra lateral necesita para pintar un hábito.
-
-    Atributos:
-        habit_id: Identificador del hábito.
-        icon: Clave semántica del icono.
-        name: Nombre visible del hábito.
-        streak: Racha actual.
-        selected: Indica si el elemento está seleccionado.
-    """
-
-    habit_id: int
-    icon: str
-    name: str
-    streak: int
-    selected: bool
-
-
-@dataclass(frozen=True)
-class DetailHeader:
-    """Datos del encabezado del panel de detalle.
-
-    Atributos:
-        habit_id: Identificador del hábito.
-        icon: Clave semántica del icono.
-        name: Nombre visible del hábito.
-        subtitle: Subtítulo fijo del detalle.
-        start_date_label: Fecha de inicio en formato dd/mm/aaaa.
-    """
-
-    habit_id: int
-    icon: str
-    name: str
-    subtitle: str
-    start_date_label: str
-
-
-@dataclass(frozen=True)
-class EmptyState:
-    """Textos que se muestran cuando no hay hábitos.
-
-    Atributos:
-        sidebar_message: Mensaje de la barra lateral.
-        title: Título del panel principal.
-        button_label: Texto del botón para crear el primer hábito.
-    """
-
-    sidebar_message: str
-    title: str
-    button_label: str
-
-
-@dataclass(frozen=True)
-class StatCard:
-    """Datos de una tarjeta de estadísticas.
-
-    Atributos:
-        label: Título visible de la tarjeta.
-        value: Valor numérico de la estadística.
-    """
-
-    label: str
-    value: int
 
 
 @dataclass
@@ -350,68 +232,3 @@ class AppState:
         for cell in cells:
             rows[cell.weekday].append(cell)
         return rows
-
-
-def load_app_state(
-    db_path: str = "data/habits.db",
-    today: date | None = None,
-) -> AppState:
-    """Cargar el estado de la aplicación desde la base de datos.
-
-    Obtiene todos los hábitos y sus fechas de completado, recuperadas y su
-    configuración de recordatorio desde `habits.persistence`, calcula las estadísticas
-    con `habits.domain`, ordena por racha actual descendente y nombre ascendente, y
-    selecciona el primer hábito de la lista.
-
-    Args:
-        db_path: Ruta al archivo de base de datos SQLite.
-        today: Fecha actual; si se omite, se usa `date.today()`.
-
-    Returns:
-        Un AppState con los hábitos, sus estadísticas, sus fechas recuperadas,
-        sus recordatorios y la selección inicial.
-    """
-    current_day = today or date.today()
-    rows = list_all_habits_db(db_path)
-
-    habits_state: list[HabitState] = []
-    for row in rows:
-        completed_dates = {
-            date.fromisoformat(value)
-            for value in get_completions_db(row.id, db_path)
-        }
-        recovered_dates = {
-            date.fromisoformat(value)
-            for value in get_recovered_dates_db(row.id, db_path)
-        }
-        reminder = get_reminder_db(row.id, db_path)
-        habits_state.append(
-            HabitState(
-                habit=Habit(
-                    id=row.id,
-                    name=row.name,
-                    start_date=date.fromisoformat(row.start_date),
-                    icon=row.icon,
-                ),
-                stats=get_habit_stats(
-                    completed_dates,
-                    current_day,
-                    recovered_dates,
-                ),
-                completed_dates=completed_dates,
-                recovered_dates=recovered_dates,
-                reminder_enabled=reminder.enabled if reminder else False,
-                reminder_time=reminder.reminder_time if reminder else None,
-            )
-        )
-
-    habits_state.sort(
-        key=lambda state: (-state.stats.current_streak, state.habit.name)
-    )
-
-    selected_id = habits_state[0].habit.id if habits_state else None
-    return AppState(
-        habits=habits_state,
-        selected_id=selected_id,
-        today=current_day,
-    )

@@ -20,7 +20,8 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import HabitDetailHeader
-from habits.app_state import AppState, load_app_state
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
 from habits.persistence.habits_repo import create_habit_db, update_habit_db
 from habits.persistence.reminders_repo import save_reminder_db
 from habits.persistence.schema import init_db

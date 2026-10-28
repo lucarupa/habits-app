@@ -3,20 +3,17 @@
 # spec: 005-local-reminders
 """Tests para el cargador de estado — Tarea 3.1, RF-1.1, RF-1.3, RF-1.5, RFN-3."""
 
+import ast
 import os
 import tempfile
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
-from habits.app_state import (
-    AppState,
-    DetailHeader,
-    EmptyState,
-    HabitState,
-    SidebarItem,
-    load_app_state,
-)
+from habits.state.app_state import AppState
+from habits.state.loader import load_app_state
+from habits.state.models import DetailHeader, EmptyState, HabitState, SidebarItem
 from habits.domain.models import HabitStats
 from habits.persistence.completions_repo import (
     mark_completed_db,
@@ -25,6 +22,53 @@ from habits.persistence.completions_repo import (
 from habits.persistence.habits_repo import create_habit_db, update_habit_db
 from habits.persistence.reminders_repo import save_reminder_db
 from habits.persistence.schema import init_db
+
+ROOT = Path(__file__).resolve().parents[1]
+HABITS_DIR = ROOT / "habits"
+LEGACY_MODULE = "habits.app_state"
+FORBIDDEN_STATE_IMPORTS = {"flet", "sqlite3"}
+
+
+def imported_modules(path: Path) -> list[str]:
+    """Extraer los módulos importados por un archivo Python."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    modules: list[str] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            modules.append(node.module)
+
+    return modules
+
+
+class TestStatePackage:
+    """Verificación del paquete de estado — Tarea 4.4."""
+
+    def test_legacy_app_state_module_is_gone(self):
+        """RF-2.5, RF-5.1: el módulo monolítico y sus imports desaparecen."""
+        assert not (HABITS_DIR / "app_state.py").exists()
+
+        offenders = [
+            path.relative_to(ROOT).as_posix()
+            for directory in ("habits", "scripts", "tests")
+            for path in sorted((ROOT / directory).rglob("*.py"))
+            if LEGACY_MODULE in imported_modules(path)
+        ]
+
+        assert offenders == []
+
+    def test_state_package_does_not_import_flet_or_sqlite(self):
+        """RF-2.6, RF-2.7: el estado no depende de la interfaz ni de SQLite."""
+        offenders = [
+            f"{path.name}: {module}"
+            for path in sorted((HABITS_DIR / "state").glob("*.py"))
+            for module in imported_modules(path)
+            if module.split(".")[0] in FORBIDDEN_STATE_IMPORTS
+        ]
+
+        assert offenders == []
 
 
 class TestLoadAppState:
