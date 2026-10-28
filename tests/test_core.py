@@ -4,19 +4,19 @@ from datetime import date, timedelta
 
 import pytest
 
-from habits import core
-from habits.core import (
-    Habit,
-    HabitStats,
-    HeatmapDay,
+from habits.domain.habits import (
     create_habit,
-    reset_id_counter,
     mark_completed,
-    calculate_streak,
+    reset_id_counter,
+    update_habit,
+)
+from habits.domain.heatmap import build_activity_heatmap
+from habits.domain.models import Habit, HabitStats, HeatmapDay
+from habits.domain.recovery import get_habit_stats
+from habits.domain.streaks import (
     calculate_best_streak,
+    calculate_streak,
     count_registered_days,
-    get_habit_stats,
-    build_activity_heatmap,
     list_habits_with_streak,
 )
 
@@ -157,7 +157,7 @@ class TestUpdateHabit:
         """RF-2.9, RF-2.12: Devuelve nombre, fecha e icono nuevos con el mismo ID."""
         habit = self._habit()
 
-        updated = core.update_habit(
+        updated = update_habit(
             habit,
             name="Python avanzado",
             start_date=date(2026, 10, 1),
@@ -175,7 +175,7 @@ class TestUpdateHabit:
 
     def test_update_habit_strips_name(self):
         """RF-2.3: El nombre actualizado se guarda sin espacios sobrantes."""
-        updated = core.update_habit(
+        updated = update_habit(
             self._habit(),
             name="  Leer  ",
             start_date=date(2026, 9, 1),
@@ -191,7 +191,7 @@ class TestUpdateHabit:
 
         for name in ("", "   "):
             with pytest.raises(ValueError, match="obligatorio"):
-                core.update_habit(
+                update_habit(
                     habit,
                     name=name,
                     start_date=habit.start_date,
@@ -204,7 +204,7 @@ class TestUpdateHabit:
         habit = self._habit()
 
         with pytest.raises(ValueError, match="60"):
-            core.update_habit(
+            update_habit(
                 habit,
                 name="A" * 61,
                 start_date=habit.start_date,
@@ -217,7 +217,7 @@ class TestUpdateHabit:
         habit = self._habit()
 
         with pytest.raises(ValueError, match="futura"):
-            core.update_habit(
+            update_habit(
                 habit,
                 name="Python",
                 start_date=TODAY + timedelta(days=1),
@@ -229,7 +229,7 @@ class TestUpdateHabit:
         """RF-2.8: Una clave de icono ajena al catálogo conserva el icono actual."""
         habit = self._habit()
 
-        updated = core.update_habit(
+        updated = update_habit(
             habit,
             name="Python",
             start_date=habit.start_date,

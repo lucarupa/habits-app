@@ -3,7 +3,7 @@
 
 Reproduce el fallo `FrozenInstanceError: cannot assign to field '_parent'`
 que ocurría al actualizar la página cuando el estado contenía hábitos.
-Los modelos de `app_state.py` y `core.py` son dataclasses frozen y no deben
+Los modelos de dominio y de estado son dataclasses frozen y no deben
 formar parte del árbol de controles que Flet serializa.
 """
 

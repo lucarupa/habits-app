@@ -3,7 +3,7 @@
 """Interfaz de escritorio para Habits App.
 
 Capa de presentación en Flet 1.0: vistas y navegación, sin lógica de negocio.
-Delega toda la lógica a `core.py` y `storage.py`.
+Delega el dominio en `habits.domain` y la persistencia en `storage.py`.
 
 Constitución principio 3: la capa de interfaz nunca contiene cálculos ni acceso a datos.
 """
@@ -15,13 +15,9 @@ from typing import Any, Callable
 import flet as ft
 from flet.controls.base_control import skip_field
 
-from habits.core import (
-    DEFAULT_ICON,
-    Habit,
-    HeatmapDay,
-    create_habit,
-    calculate_streak,
-)
+from habits.domain.habits import create_habit
+from habits.domain.models import DEFAULT_ICON, Habit, HeatmapDay
+from habits.domain.streaks import calculate_streak
 from habits.app_state import (
     EMPTY_BUTTON_LABEL,
     EMPTY_SIDEBAR_MESSAGE,
@@ -1363,7 +1359,7 @@ class CreateHabitView(ft.Column):
     """Vista para crear nuevos hábitos (Tarea 6.2, RF-1).
 
     Formulario con nombre obligatorio y fecha de inicio opcional.
-    Valida las entradas y delega la creación a core.py y storage.py.
+    Valida las entradas y delega la creación al dominio y a storage.py.
     """
 
     on_habit_created: Callable[..., Any] | None = None
@@ -1453,7 +1449,7 @@ class CreateHabitView(ft.Column):
                 self.status_text.color = "red"
                 return
 
-        # Crear el hábito delegando en core.py y storage.py
+        # Crear el hábito delegando en el dominio y storage.py
         try:
             habit = create_habit(name, start_date)
             create_habit_db(
@@ -1586,7 +1582,7 @@ class ListHabitsView(ft.Column):
     ) -> list[tuple[Habit, int]]:
         """Ordenar hábitos por racha descendente y nombre alfabético.
 
-        Delega el cálculo de racha a core.py (RF-3.2, RF-3.3).
+        Delega el cálculo de racha al dominio (RF-3.2, RF-3.3).
         """
         result: list[tuple[Habit, int]] = []
         for habit in habits:

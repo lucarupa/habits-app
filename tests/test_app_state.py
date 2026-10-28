@@ -17,7 +17,7 @@ from habits.app_state import (
     SidebarItem,
     load_app_state,
 )
-from habits.core import HabitStats
+from habits.domain.models import HabitStats
 from habits.storage import (
     create_habit_db,
     init_db,
@@ -75,8 +75,8 @@ class TestLoadAppState:
         assert habit_state.habit.icon == "code"
         assert habit_state.completed_dates == {self.today, yesterday}
 
-    def test_load_app_state_computes_stats_with_core(self):
-        """RF-1.1, RFN-3: Las estadísticas se calculan con core, no en la UI."""
+    def test_load_app_state_computes_stats_with_domain(self):
+        """RF-1.1, RFN-3: Las estadísticas se calculan con dominio, no en la UI."""
         habit_id = create_habit_db(
             "Leer", "2024-10-20", db_path=self.db_path
         )

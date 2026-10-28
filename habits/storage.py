@@ -10,7 +10,7 @@ from datetime import date, datetime
 import sqlite3
 import os
 
-from habits.core import DEFAULT_ICON
+from habits.domain.models import DEFAULT_ICON
 from habits.reminders import is_due
 
 

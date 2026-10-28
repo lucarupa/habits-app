@@ -7,7 +7,7 @@ spec 002. No requieren Flet.
 
 from pathlib import Path
 
-from habits.core import DEFAULT_ICON
+from habits.domain.models import DEFAULT_ICON
 from habits.habit_form import ICON_LABELS
 
 README_PATH = Path(__file__).resolve().parents[1] / "README.md"

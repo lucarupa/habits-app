@@ -34,29 +34,29 @@
 
 ## Fase 2: Paquete de dominio (`habits/domain/`)
 
-- [ ] **Tarea 2.1:** Migrar los tests de dominio a las nuevas rutas
+- [x] **Tarea 2.1:** Migrar los tests de dominio a las nuevas rutas
   - **RF:** RF-2.1, RF-2.5, RF-5.1, RF-5.3
   - **Hecho cuando:** `tests/test_core.py` y los tests que usan funciones de dominio importan
     desde `habits.domain`, conservan los mismos casos y la suite muestra los fallos esperados por
     los módulos aún inexistentes.
 
-- [ ] **Tarea 2.2:** Crear `habits/domain/models.py`
+- [x] **Tarea 2.2:** Crear `habits/domain/models.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** `Habit`, `HabitStats`, `HeatmapDay` y `RecoverableGap` se importan desde el
     nuevo módulo con las mismas entradas, salidas y textos, sin dependencias de Flet ni SQLite.
 
-- [ ] **Tarea 2.3:** Crear `habits/domain/habits.py`
+- [x] **Tarea 2.3:** Crear `habits/domain/habits.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** Las operaciones de alta, edición y marcado de completados se trasladan sin
     reescribir su lógica ni sus validaciones, y sus tests pasan desde la nueva ruta.
 
-- [ ] **Tarea 2.4:** Crear `habits/domain/streaks.py`, `recovery.py` y `heatmap.py`
+- [x] **Tarea 2.4:** Crear `habits/domain/streaks.py`, `recovery.py` y `heatmap.py`
   - **RF:** RF-2.1, RF-2.2, RF-2.3, RF-5.3
   - **Hecho cuando:** Rachas, orden de hábitos, huecos recuperables, estadísticas con recuperados
     y construcción del heatmap quedan separados por responsabilidad, cada módulo respeta el
     límite y los tests de dominio pasan.
 
-- [ ] **Tarea 2.5:** Eliminar `habits/core.py` y verificar el dominio
+- [x] **Tarea 2.5:** Eliminar `habits/core.py` y verificar el dominio
   - **RF:** RF-2.5, RF-2.6, RF-2.7, RF-5.1
   - **Hecho cuando:** No queda ninguna referencia a `habits.core`, todos los imports apuntan a
     `habits.domain`, no hay ciclos entre los nuevos módulos y la suite vuelve a pasar.

@@ -25,7 +25,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from habits.core import ALLOWED_ICONS, get_habit_stats  # noqa: E402
+from habits.domain.models import ALLOWED_ICONS  # noqa: E402
+from habits.domain.recovery import get_habit_stats  # noqa: E402
 from habits.storage import (  # noqa: E402
     create_habit_db,
     init_db,

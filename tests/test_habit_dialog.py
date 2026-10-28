@@ -17,7 +17,7 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import HabitFormDialog
-from habits.core import DEFAULT_ICON, Habit
+from habits.domain.models import DEFAULT_ICON, Habit
 from habits.habit_form import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,

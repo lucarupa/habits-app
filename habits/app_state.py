@@ -4,22 +4,16 @@
 """Cargador de estado de la aplicación.
 
 Orquesta la lectura de hábitos, fechas y recordatorios desde `storage.py` y
-delega los cálculos en `core.py` y `reminders.py`. No importa Flet ni contiene
+delega los cálculos en `habits.domain` y `reminders.py`. No importa Flet ni contiene
 lógica de presentación (Constitución, principio 3; RFN-3).
 """
 
 from dataclasses import dataclass, field
 from datetime import date
 
-from habits.core import (
-    Habit,
-    HabitStats,
-    HeatmapDay,
-    RecoverableGap,
-    build_activity_heatmap,
-    find_recoverable_gap,
-    get_habit_stats,
-)
+from habits.domain.heatmap import build_activity_heatmap
+from habits.domain.models import Habit, HabitStats, HeatmapDay, RecoverableGap
+from habits.domain.recovery import find_recoverable_gap, get_habit_stats
 from habits.reminders import (
     DISABLED_LABEL,
     reminder_label as build_reminder_label,
@@ -365,7 +359,7 @@ def load_app_state(
 
     Obtiene todos los hábitos y sus fechas de completado, recuperadas y su
     configuración de recordatorio desde `storage.py`, calcula las estadísticas
-    con `core.py`, ordena por racha actual descendente y nombre ascendente, y
+    con `habits.domain`, ordena por racha actual descendente y nombre ascendente, y
     selecciona el primer hábito de la lista.
 
     Args:

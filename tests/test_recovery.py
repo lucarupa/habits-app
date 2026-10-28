@@ -7,7 +7,10 @@ recupera el hueco más reciente cuando tiene uno o dos días. No requieren Flet.
 
 from datetime import date, timedelta
 
-from habits import core
+from habits.domain.heatmap import build_activity_heatmap
+from habits.domain.models import RecoverableGap
+from habits.domain.recovery import find_recoverable_gap, get_habit_stats
+from habits.domain.streaks import count_registered_days
 
 TODAY = date(2026, 10, 26)
 
@@ -19,8 +22,8 @@ def days_ago(count: int) -> date:
 
 def gap_dates(completed_dates: set[date]) -> tuple[date, ...]:
     """Obtener las fechas del hueco recuperable, comprobando su tipo."""
-    gap = core.find_recoverable_gap(completed_dates, TODAY)
-    assert isinstance(gap, core.RecoverableGap)
+    gap = find_recoverable_gap(completed_dates, TODAY)
+    assert isinstance(gap, RecoverableGap)
     return gap.dates
 
 
@@ -29,7 +32,7 @@ class TestFindRecoverableGap:
 
     def test_without_dates_returns_none(self):
         """RF-2.3: un hábito sin registros no tiene nada que recuperar."""
-        assert core.find_recoverable_gap(set(), TODAY) is None
+        assert find_recoverable_gap(set(), TODAY) is None
 
     def test_one_day_between_records(self):
         """RF-2.1: un día faltante entre dos registros es recuperable."""
@@ -47,7 +50,7 @@ class TestFindRecoverableGap:
         """RF-2.2: un hueco de tres días entre registros no es recuperable."""
         completed = {days_ago(4), TODAY}
 
-        assert core.find_recoverable_gap(completed, TODAY) is None
+        assert find_recoverable_gap(completed, TODAY) is None
 
     def test_one_day_before_today(self):
         """RF-2.1: el hueco de cola de un día es recuperable."""
@@ -65,7 +68,7 @@ class TestFindRecoverableGap:
         """RF-2.2: el hueco de cola de tres días no es recuperable."""
         completed = {days_ago(4)}
 
-        assert core.find_recoverable_gap(completed, TODAY) is None
+        assert find_recoverable_gap(completed, TODAY) is None
 
     def test_today_completed_with_two_day_gap(self):
         """RF-2.1: hoy registrado y un hueco anterior de dos días es recuperable."""
@@ -77,13 +80,13 @@ class TestFindRecoverableGap:
         """RF-2.1: sin días faltantes recientes no hay nada que recuperar."""
         completed = {days_ago(2), days_ago(1), TODAY}
 
-        assert core.find_recoverable_gap(completed, TODAY) is None
+        assert find_recoverable_gap(completed, TODAY) is None
 
     def test_ignores_older_gap_when_latest_is_large(self):
         """RF-2.2, RF-2.18: manda el hueco más reciente, aunque sea largo."""
         completed = {days_ago(10), days_ago(8), days_ago(4), TODAY}
 
-        assert core.find_recoverable_gap(completed, TODAY) is None
+        assert find_recoverable_gap(completed, TODAY) is None
 
     def test_returns_latest_small_gap(self):
         """RF-2.18: se devuelve el hueco pequeño más reciente."""
@@ -106,7 +109,7 @@ class TestRecoveredDaysStatsAndHeatmap:
         completed = {days_ago(2), days_ago(1), TODAY}
         recovered = {days_ago(1)}
 
-        stats = core.get_habit_stats(
+        stats = get_habit_stats(
             completed,
             TODAY,
             recovered_dates=recovered,
@@ -120,18 +123,18 @@ class TestRecoveredDaysStatsAndHeatmap:
         completed = {days_ago(3), days_ago(2), days_ago(1), TODAY}
         recovered = {days_ago(2), days_ago(1)}
 
-        assert core.count_registered_days(
+        assert count_registered_days(
             completed,
             recovered_dates=recovered,
         ) == 2
-        assert core.count_registered_days(completed) == 4
+        assert count_registered_days(completed) == 4
 
     def test_heatmap_marks_recovered_days(self):
         """RF-2.11: el heatmap distingue los días recuperados."""
         completed = {days_ago(2), days_ago(1), TODAY}
         recovered = {days_ago(1)}
 
-        cells = core.build_activity_heatmap(
+        cells = build_activity_heatmap(
             completed,
             TODAY,
             recovered_dates=recovered,
@@ -147,6 +150,6 @@ class TestRecoveredDaysStatsAndHeatmap:
 
     def test_heatmap_defaults_recovered_to_false(self):
         """RF-2.11: sin fechas recuperadas, ninguna celda es recuperada."""
-        cells = core.build_activity_heatmap({TODAY}, TODAY)
+        cells = build_activity_heatmap({TODAY}, TODAY)
 
         assert all(cell.recovered is False for cell in cells)

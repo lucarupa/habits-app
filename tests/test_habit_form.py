@@ -13,7 +13,7 @@ import pytest
 
 from habits import habit_form
 from habits.app_state import load_app_state
-from habits.core import ALLOWED_ICONS, DEFAULT_ICON, Habit
+from habits.domain.models import ALLOWED_ICONS, DEFAULT_ICON, Habit
 from habits.habit_form import (
     DATE_FORMAT_ERROR,
     ICON_CATALOG,
