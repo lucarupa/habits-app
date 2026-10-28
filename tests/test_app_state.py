@@ -18,14 +18,13 @@ from habits.app_state import (
     load_app_state,
 )
 from habits.domain.models import HabitStats
-from habits.storage import (
-    create_habit_db,
-    init_db,
+from habits.persistence.completions_repo import (
     mark_completed_db,
     mark_recovered_days_db,
-    save_reminder_db,
-    update_habit_db,
 )
+from habits.persistence.habits_repo import create_habit_db, update_habit_db
+from habits.persistence.reminders_repo import save_reminder_db
+from habits.persistence.schema import init_db
 
 
 class TestLoadAppState:
@@ -53,7 +52,7 @@ class TestLoadAppState:
         assert state.selected is None
 
     def test_load_app_state_builds_habits_from_storage(self):
-        """RF-1.1, RFN-3: Obtiene hábitos y fechas desde storage."""
+        """RF-1.1, RFN-3: Obtiene hábitos y fechas desde persistencia."""
         habit_id = create_habit_db(
             "Estudiar Python",
             "2024-10-01",

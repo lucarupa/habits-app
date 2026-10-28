@@ -12,7 +12,8 @@ pytest.importorskip("flet")
 import flet as ft
 
 from habits.app import main
-from habits.storage import create_habit_db, init_db
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

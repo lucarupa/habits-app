@@ -32,13 +32,12 @@ from habits.app_state import (
     AppState,
     load_app_state,
 )
-from habits.storage import (
-    create_habit_db,
-    get_habit_db,
-    init_db,
+from habits.persistence.completions_repo import (
     mark_completed_db,
     mark_recovered_days_db,
 )
+from habits.persistence.habits_repo import create_habit_db, get_habit_db
+from habits.persistence.schema import init_db
 from habits.theme import (
     ACCENT_GREEN,
     HEATMAP_EMPTY,

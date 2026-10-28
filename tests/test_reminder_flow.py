@@ -2,7 +2,7 @@
 """Tests del flujo integrado de recordatorios — Tarea 6.5.
 
 RF-1.2, RF-1.7, RF-3.4, RF-4.2 y RF-4.4: `main` abre el diálogo, guarda con
-`storage`, sincroniza el planificador al iniciar y tras cada cambio, conserva
+la persistencia, sincroniza el planificador al iniciar y tras cada cambio, conserva
 la configuración anterior si el sistema falla y muestra avisos en español.
 
 Se ejecutan con el intérprete del proyecto (`.venv`), que tiene Flet instalado.
@@ -24,12 +24,9 @@ from habits.notifications import (
     SchedulerResult,
 )
 from habits.reminders import reminder_message
-from habits.storage import (
-    create_habit_db,
-    get_reminder_db,
-    init_db,
-    save_reminder_db,
-)
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.reminders_repo import get_reminder_db, save_reminder_db
+from habits.persistence.schema import init_db
 
 TODAY = date.today()
 

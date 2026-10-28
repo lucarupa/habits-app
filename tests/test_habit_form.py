@@ -29,14 +29,16 @@ from habits.habit_form import (
     parse_start_date,
     validate_habit_form,
 )
-from habits.storage import (
-    create_habit_db,
+from habits.persistence.completions_repo import (
     get_completions_db,
-    get_habit_db,
-    init_db,
-    list_all_habits_db,
     mark_completed_db,
 )
+from habits.persistence.habits_repo import (
+    create_habit_db,
+    get_habit_db,
+    list_all_habits_db,
+)
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

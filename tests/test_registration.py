@@ -19,12 +19,12 @@ from habits.registration import (
     is_registered_today,
     register_today,
 )
-from habits.storage import (
-    create_habit_db,
+from habits.persistence.completions_repo import (
     get_completions_db,
-    init_db,
     mark_completed_db,
 )
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

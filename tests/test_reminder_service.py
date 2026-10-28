@@ -15,14 +15,10 @@ from habits.app_state import load_app_state
 from habits.notifications import NotificationResult
 from habits.reminder_service import DeliverySummary, deliver_due_reminders
 from habits.reminders import reminder_message
-from habits.storage import (
-    create_habit_db,
-    get_reminder_db,
-    init_db,
-    mark_completed_db,
-    save_reminder_db,
-    update_habit_db,
-)
+from habits.persistence.completions_repo import mark_completed_db
+from habits.persistence.habits_repo import create_habit_db, update_habit_db
+from habits.persistence.reminders_repo import get_reminder_db, save_reminder_db
+from habits.persistence.schema import init_db
 
 
 class FakeNotifier:

@@ -2,7 +2,7 @@
 # spec: 004-duplicate-warning-streak-recovery
 """Lógica pura del registro del día actual.
 
-Persiste el completado de hoy y evita duplicados delegando en `storage.py`.
+Persiste el completado de hoy y evita duplicados delegando en `habits.persistence`.
 No importa Flet (Constitución, principio 3). Cubre RF-5.1 a RF-5.6 y el
 texto del aviso de registro duplicado (RF-1.2).
 """
@@ -11,7 +11,10 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import date
 
-from habits.storage import is_completed_today_db, mark_completed_db
+from habits.persistence.completions_repo import (
+    is_completed_today_db,
+    mark_completed_db,
+)
 
 REGISTRATION_TITLE = "Registrar hoy"
 REGISTRATION_BUTTON_LABEL = "Guardar"

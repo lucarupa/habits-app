@@ -39,15 +39,14 @@ from habits.reminders import (
     reminder_message,
     validate_reminder_time,
 )
-from habits.storage import (
+from habits.persistence.completions_repo import mark_completed_db
+from habits.persistence.habits_repo import (
     create_habit_db,
     delete_habit_db,
-    get_reminder_db,
-    init_db,
-    mark_completed_db,
-    save_reminder_db,
     update_habit_db,
 )
+from habits.persistence.reminders_repo import get_reminder_db, save_reminder_db
+from habits.persistence.schema import init_db
 
 NOW = datetime(2024, 10, 24, 9, 0)
 TODAY = "2024-10-24"

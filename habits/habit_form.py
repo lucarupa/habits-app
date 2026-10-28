@@ -3,7 +3,7 @@
 """Lógica pura del formulario de creación y edición de hábitos.
 
 Valida el nombre, la fecha opcional y el icono, y persiste el hábito delegando
-en `habits.domain` y `storage.py`. No importa Flet (Constitución, principio 3).
+en `habits.domain` y `habits.persistence`. No importa Flet (Constitución, principio 3).
 
 Cubre RF-2.2 a RF-2.10 de la creación y RF-2.1 a RF-2.14 de la edición.
 """
@@ -14,7 +14,7 @@ from datetime import date
 
 from habits.domain.habits import create_habit, update_habit
 from habits.domain.models import ALLOWED_ICONS, DEFAULT_ICON, Habit
-from habits.storage import create_habit_db, update_habit_db
+from habits.persistence.habits_repo import create_habit_db, update_habit_db
 
 MAX_NAME_LENGTH = 60
 

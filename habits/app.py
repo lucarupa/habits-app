@@ -3,7 +3,7 @@
 """Interfaz de escritorio para Habits App.
 
 Capa de presentación en Flet 1.0: vistas y navegación, sin lógica de negocio.
-Delega el dominio en `habits.domain` y la persistencia en `storage.py`.
+Delega el dominio en `habits.domain` y la persistencia en `habits.persistence`.
 
 Constitución principio 3: la capa de interfaz nunca contiene cálculos ni acceso a datos.
 """
@@ -72,18 +72,19 @@ from habits.theme import (
     WINDOW_MIN_WIDTH,
     WINDOW_WIDTH,
 )
-from habits.storage import (
-    init_db,
-    create_habit_db,
-    delete_habit_db,
-    get_reminder_db,
-    list_all_habits_db,
+from habits.persistence.completions_repo import (
     get_completions_db,
+    is_completed_today_db,
     mark_completed_db,
     mark_recovered_days_db,
-    is_completed_today_db,
-    save_reminder_db,
 )
+from habits.persistence.habits_repo import (
+    create_habit_db,
+    delete_habit_db,
+    list_all_habits_db,
+)
+from habits.persistence.reminders_repo import get_reminder_db, save_reminder_db
+from habits.persistence.schema import init_db
 
 ICON_BY_KEY = {
     "book": ft.Icons.MENU_BOOK,
@@ -1359,7 +1360,7 @@ class CreateHabitView(ft.Column):
     """Vista para crear nuevos hábitos (Tarea 6.2, RF-1).
 
     Formulario con nombre obligatorio y fecha de inicio opcional.
-    Valida las entradas y delega la creación al dominio y a storage.py.
+    Valida las entradas y delega la creación al dominio y a la persistencia.
     """
 
     on_habit_created: Callable[..., Any] | None = None
@@ -1449,7 +1450,7 @@ class CreateHabitView(ft.Column):
                 self.status_text.color = "red"
                 return
 
-        # Crear el hábito delegando en el dominio y storage.py
+        # Crear el hábito delegando en el dominio y la persistencia
         try:
             habit = create_habit(name, start_date)
             create_habit_db(

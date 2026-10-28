@@ -14,12 +14,12 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from habits.storage import init_db
+from habits.persistence.schema import init_db
 
 ROOT = Path(__file__).resolve().parents[1]
 HABITS_DIR = ROOT / "habits"
 APP_PATH = HABITS_DIR / "app.py"
-STORAGE_PATH = HABITS_DIR / "storage.py"
+PERSISTENCE_DIR = HABITS_DIR / "persistence"
 
 FORBIDDEN_FUNCTION_PARTS = (
     "undo",
@@ -154,23 +154,24 @@ def test_database_schema_has_no_undo_archive_or_history_tables():
     }
 
 
-def test_storage_has_no_record_level_mutation_or_history_api():
+def test_persistence_has_no_record_level_mutation_or_history_api():
     """Fuera de alcance: no se editan registros ni se guarda historial."""
-    tree = ast.parse(STORAGE_PATH.read_text(encoding="utf-8"))
     offenders: list[str] = []
 
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        name = node.name.lower()
+    for path in sorted(PERSISTENCE_DIR.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            name = node.name.lower()
 
-        if any(part in name for part in FORBIDDEN_FUNCTION_PARTS):
-            offenders.append(node.name)
-            continue
-        if "completion" in name and any(
-            verb in name for verb in RECORD_MUTATION_VERBS
-        ):
-            offenders.append(node.name)
+            if any(part in name for part in FORBIDDEN_FUNCTION_PARTS):
+                offenders.append(f"{path.name}: {node.name}")
+                continue
+            if "completion" in name and any(
+                verb in name for verb in RECORD_MUTATION_VERBS
+            ):
+                offenders.append(f"{path.name}: {node.name}")
 
     assert offenders == []
 

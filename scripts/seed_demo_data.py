@@ -27,12 +27,12 @@ if str(ROOT) not in sys.path:
 
 from habits.domain.models import ALLOWED_ICONS  # noqa: E402
 from habits.domain.recovery import get_habit_stats  # noqa: E402
-from habits.storage import (  # noqa: E402
+from habits.persistence.completions_repo import mark_completed_db  # noqa: E402
+from habits.persistence.habits_repo import (  # noqa: E402
     create_habit_db,
-    init_db,
     list_all_habits_db,
-    mark_completed_db,
 )
+from habits.persistence.schema import init_db  # noqa: E402
 
 DEFAULT_DB_PATH = "data/habits.db"
 DEMO_DAYS = 14

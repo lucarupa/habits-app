@@ -13,7 +13,9 @@ from datetime import datetime
 from habits.notifications import NotificationResult
 from habits.reminder_runner import main, run_check
 from habits.reminder_service import DeliverySummary
-from habits.storage import create_habit_db, init_db, save_reminder_db
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.reminders_repo import save_reminder_db
+from habits.persistence.schema import init_db
 
 
 class FakeNotifier:

@@ -14,7 +14,7 @@ import sqlite3
 import tempfile
 from pathlib import Path
 
-from habits.storage import init_db
+from habits.persistence.schema import init_db
 
 ROOT = Path(__file__).resolve().parents[1]
 HABITS_DIR = ROOT / "habits"

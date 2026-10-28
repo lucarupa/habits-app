@@ -27,7 +27,9 @@ from habits.app import (
     TodayRegistrationPanel,
 )
 from habits.app_state import AppState, load_app_state
-from habits.storage import create_habit_db, init_db, mark_completed_db
+from habits.persistence.completions_repo import mark_completed_db
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

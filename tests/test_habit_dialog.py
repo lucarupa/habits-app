@@ -25,12 +25,12 @@ from habits.habit_form import (
     NAME_REQUIRED_ERROR,
     NAME_TOO_LONG_ERROR,
 )
-from habits.storage import (
+from habits.persistence.habits_repo import (
     create_habit_db,
     get_habit_db,
-    init_db,
     list_all_habits_db,
 )
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

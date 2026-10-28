@@ -3,9 +3,10 @@
 # spec: 005-local-reminders
 """Cargador de estado de la aplicación.
 
-Orquesta la lectura de hábitos, fechas y recordatorios desde `storage.py` y
-delega los cálculos en `habits.domain` y `reminders.py`. No importa Flet ni contiene
-lógica de presentación (Constitución, principio 3; RFN-3).
+Orquesta la lectura de hábitos, fechas y recordatorios desde
+`habits.persistence` y delega los cálculos en `habits.domain` y `reminders.py`.
+No importa Flet ni contiene lógica de presentación (Constitución, principio 3;
+RFN-3).
 """
 
 from dataclasses import dataclass, field
@@ -18,12 +19,12 @@ from habits.reminders import (
     DISABLED_LABEL,
     reminder_label as build_reminder_label,
 )
-from habits.storage import (
+from habits.persistence.completions_repo import (
     get_completions_db,
     get_recovered_dates_db,
-    get_reminder_db,
-    list_all_habits_db,
 )
+from habits.persistence.habits_repo import list_all_habits_db
+from habits.persistence.reminders_repo import get_reminder_db
 
 HABIT_SUBTITLE = "Hábito de estudio"
 EMPTY_SIDEBAR_MESSAGE = "No hay hábitos aún"
@@ -358,7 +359,7 @@ def load_app_state(
     """Cargar el estado de la aplicación desde la base de datos.
 
     Obtiene todos los hábitos y sus fechas de completado, recuperadas y su
-    configuración de recordatorio desde `storage.py`, calcula las estadísticas
+    configuración de recordatorio desde `habits.persistence`, calcula las estadísticas
     con `habits.domain`, ordena por racha actual descendente y nombre ascendente, y
     selecciona el primer hábito de la lista.
 

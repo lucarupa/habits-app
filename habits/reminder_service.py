@@ -13,7 +13,7 @@ from typing import Protocol
 
 from habits.notifications import NotificationResult
 from habits.reminders import reminder_message
-from habits.storage import (
+from habits.persistence.reminders_repo import (
     claim_reminder_delivery_db,
     list_due_reminders_db,
     release_reminder_delivery_db,

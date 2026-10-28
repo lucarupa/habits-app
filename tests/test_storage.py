@@ -13,15 +13,28 @@ from datetime import date, datetime
 
 import pytest
 
-from habits import storage
-from habits.storage import (
-    init_db, create_habit_db, get_habit_db,
-    mark_completed_db, is_completed_today_db,
-    list_all_habits_db, get_completions_db,
-    delete_habit_db, get_reminder_db, save_reminder_db,
-    list_due_reminders_db, claim_reminder_delivery_db,
-    release_reminder_delivery_db
+from habits.persistence.completions_repo import (
+    get_completions_db,
+    get_recovered_dates_db,
+    is_completed_today_db,
+    mark_completed_db,
+    mark_recovered_days_db,
 )
+from habits.persistence.habits_repo import (
+    create_habit_db,
+    delete_habit_db,
+    get_habit_db,
+    list_all_habits_db,
+    update_habit_db,
+)
+from habits.persistence.reminders_repo import (
+    claim_reminder_delivery_db,
+    get_reminder_db,
+    list_due_reminders_db,
+    release_reminder_delivery_db,
+    save_reminder_db,
+)
+from habits.persistence.schema import init_db
 
 
 class TestInitDb:
@@ -452,7 +465,7 @@ class TestUpdateHabitDb:
             "Python", "2026-09-01", icon="code", db_path=self.db_path
         )
 
-        storage.update_habit_db(
+        update_habit_db(
             habit_id,
             name="Python avanzado",
             start_date="2026-10-01",
@@ -472,7 +485,7 @@ class TestUpdateHabitDb:
     def test_update_habit_db_raises_for_unknown_id(self):
         """RF-2.13: Un ID inexistente lanza ValueError y no crea filas."""
         with pytest.raises(ValueError, match="no existe"):
-            storage.update_habit_db(
+            update_habit_db(
                 999,
                 name="Fantasma",
                 start_date="2026-10-01",
@@ -503,7 +516,7 @@ class TestDeleteHabitDb:
         mark_completed_db(habit_id, "2026-10-24", db_path=self.db_path)
         mark_completed_db(habit_id, "2026-10-25", db_path=self.db_path)
 
-        storage.delete_habit_db(habit_id, db_path=self.db_path)
+        delete_habit_db(habit_id, db_path=self.db_path)
 
         assert get_habit_db(habit_id, db_path=self.db_path) is None
         assert get_completions_db(habit_id, db_path=self.db_path) == []
@@ -516,7 +529,7 @@ class TestDeleteHabitDb:
         mark_completed_db(kept_id, "2026-10-24", db_path=self.db_path)
         mark_completed_db(kept_id, "2026-10-25", db_path=self.db_path)
 
-        storage.delete_habit_db(deleted_id, db_path=self.db_path)
+        delete_habit_db(deleted_id, db_path=self.db_path)
 
         kept = get_habit_db(kept_id, db_path=self.db_path)
         assert kept is not None
@@ -535,7 +548,7 @@ class TestDeleteHabitDb:
         mark_completed_db(kept_id, "2026-10-24", db_path=self.db_path)
 
         with pytest.raises(ValueError, match="no existe"):
-            storage.delete_habit_db(999, db_path=self.db_path)
+            delete_habit_db(999, db_path=self.db_path)
 
         assert get_habit_db(kept_id, db_path=self.db_path) is not None
         assert get_completions_db(kept_id, db_path=self.db_path) == ["2026-10-24"]
@@ -642,7 +655,7 @@ class TestRecoveredDaysDb:
             "Estudiar", "2026-10-20", db_path=self.db_path
         )
 
-        storage.mark_recovered_days_db(
+        mark_recovered_days_db(
             habit_id,
             ["2026-10-24", "2026-10-25"],
             self.db_path,
@@ -656,7 +669,7 @@ class TestRecoveredDaysDb:
             ).fetchall()
 
         assert rows == [("2026-10-24", 1), ("2026-10-25", 1)]
-        assert storage.get_recovered_dates_db(
+        assert get_recovered_dates_db(
             habit_id, self.db_path
         ) == ["2026-10-24", "2026-10-25"]
         assert get_completions_db(habit_id, self.db_path) == [
@@ -671,7 +684,7 @@ class TestRecoveredDaysDb:
         )
         mark_completed_db(habit_id, "2026-10-25", db_path=self.db_path)
 
-        storage.mark_recovered_days_db(
+        mark_recovered_days_db(
             habit_id,
             ["2026-10-24", "2026-10-25"],
             self.db_path,
@@ -685,14 +698,14 @@ class TestRecoveredDaysDb:
             ).fetchall()
 
         assert rows == [("2026-10-24", 1), ("2026-10-25", 0)]
-        assert storage.get_recovered_dates_db(
+        assert get_recovered_dates_db(
             habit_id, self.db_path
         ) == ["2026-10-24"]
 
     def test_mark_recovered_days_db_raises_for_unknown_habit(self):
         """RF-2.16: un hábito inexistente no deja filas parciales."""
         with pytest.raises(ValueError, match="El hábito no existe."):
-            storage.mark_recovered_days_db(
+            mark_recovered_days_db(
                 999,
                 ["2026-10-24", "2026-10-25"],
                 self.db_path,
@@ -712,13 +725,13 @@ class TestRecoveredDaysDb:
         )
         mark_completed_db(habit_id, "2026-10-20", db_path=self.db_path)
 
-        storage.mark_recovered_days_db(
+        mark_recovered_days_db(
             habit_id,
             ["2026-10-25", "2026-10-23"],
             self.db_path,
         )
 
-        assert storage.get_recovered_dates_db(
+        assert get_recovered_dates_db(
             habit_id, self.db_path
         ) == ["2026-10-23", "2026-10-25"]
 
@@ -727,13 +740,13 @@ class TestRecoveredDaysDb:
         habit_id = create_habit_db(
             "Estudiar", "2026-10-20", db_path=self.db_path
         )
-        storage.mark_recovered_days_db(
+        mark_recovered_days_db(
             habit_id,
             ["2026-10-24", "2026-10-25"],
             self.db_path,
         )
 
-        storage.delete_habit_db(habit_id, self.db_path)
+        delete_habit_db(habit_id, self.db_path)
 
         with closing(sqlite3.connect(self.db_path)) as conn:
             total = conn.execute(
@@ -742,7 +755,7 @@ class TestRecoveredDaysDb:
             ).fetchone()[0]
 
         assert total == 0
-        assert storage.get_recovered_dates_db(
+        assert get_recovered_dates_db(
             habit_id, self.db_path
         ) == []
 

@@ -63,28 +63,28 @@
 
 ## Fase 3: Paquete de persistencia (`habits/persistence/`)
 
-- [ ] **Tarea 3.1:** Migrar los tests de persistencia a las nuevas rutas
+- [x] **Tarea 3.1:** Migrar los tests de persistencia a las nuevas rutas
   - **RF:** RF-2.1, RF-2.5, RF-5.1, RF-5.2
   - **Hecho cuando:** `tests/test_storage.py` y los tests que preparan bases de datos importan
     desde `habits.persistence`, conservan el esquema y los datos de prueba y la suite muestra los
     fallos esperados.
 
-- [ ] **Tarea 3.2:** Crear `habits/persistence/schema.py`
+- [x] **Tarea 3.2:** Crear `habits/persistence/schema.py`
   - **RF:** RF-2.2, RF-5.2, RF-5.6
   - **Hecho cuando:** `init_db`, `HabitRow` y la inicialización del esquema se trasladan sin
     cambiar tablas, columnas ni datos, y los tests de creación de base pasan.
 
-- [ ] **Tarea 3.3:** Crear `habits/persistence/habits_repo.py`
+- [x] **Tarea 3.3:** Crear `habits/persistence/habits_repo.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.2, RF-5.3
   - **Hecho cuando:** El CRUD de hábitos se importa desde el nuevo módulo, conserva firmas y
     resultados y sus tests pasan.
 
-- [ ] **Tarea 3.4:** Crear `habits/persistence/completions_repo.py`
+- [x] **Tarea 3.4:** Crear `habits/persistence/completions_repo.py`
   - **RF:** RF-2.2, RF-2.3, RF-5.2, RF-5.3
   - **Hecho cuando:** Registros, días recuperados y consultas se trasladan sin alterar el
     esquema ni los cálculos, y sus tests pasan.
 
-- [ ] **Tarea 3.5:** Eliminar `habits/storage.py` y verificar la persistencia
+- [x] **Tarea 3.5:** Eliminar `habits/storage.py` y verificar la persistencia
   - **RF:** RF-2.5, RF-2.6, RF-2.7, RF-5.1, RF-5.2
   - **Hecho cuando:** No queda ninguna referencia a `habits.storage`, los repositorios no
     dependen de la interfaz y la suite de persistencia pasa con los mismos resultados.

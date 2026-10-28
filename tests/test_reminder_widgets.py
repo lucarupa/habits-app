@@ -21,12 +21,9 @@ import flet as ft
 
 from habits.app import HabitDetailHeader
 from habits.app_state import AppState, load_app_state
-from habits.storage import (
-    create_habit_db,
-    init_db,
-    save_reminder_db,
-    update_habit_db,
-)
+from habits.persistence.habits_repo import create_habit_db, update_habit_db
+from habits.persistence.reminders_repo import save_reminder_db
+from habits.persistence.schema import init_db
 
 TODAY = date(2024, 10, 24)
 

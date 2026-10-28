@@ -20,12 +20,12 @@ import flet as ft
 
 from habits.app import main
 from habits.app_state import load_app_state
-from habits.storage import (
-    create_habit_db,
+from habits.persistence.completions_repo import (
     get_recovered_dates_db,
-    init_db,
     mark_completed_db,
 )
+from habits.persistence.habits_repo import create_habit_db
+from habits.persistence.schema import init_db
 from habits.theme import HEATMAP_RECOVERED
 
 TODAY = date.today()
