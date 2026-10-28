@@ -20,53 +20,107 @@ App de escritorio en Python para registrar hábitos de estudio y calcular rachas
 - **Python 3.12+** estándar
 - **Flet 1.0.5** — interfaz de escritorio
 - **SQLite** — persistencia local (sin dependencias externas)
-- **pytest** — 354 pruebas puras + 113 con Flet (467 en `.venv`)
+- **pytest** — 428 pruebas puras + 121 con Flet (549 en `.venv`)
 
 ## Estado de implementación
 
-Spec activa: **005 — Recordatorios locales por hábito**.
+Spec activa: **006 — Organización del código y límite de tamaño por módulo**.
 
-Las fases 1 a 7 de la spec 005 están implementadas: lógica pura de validación y
-vencimiento (`reminders.py`), tabla `reminders` y entrega atómica (`storage.py`), estado del
-recordatorio (`app_state.py`), notificador y planificador del sistema (`notifications.py`),
-servicio y runner periódico (`reminder_service.py`, `reminder_runner.py`), y configuración en el
-encabezado del detalle y en `main` (`app.py`). La fase 8 añade la guardia de alcance y la
-verificación final; el detalle está en `specs/005-local-reminders/tasks.md`.
+La spec 006 reorganiza `habits/` en paquetes con responsabilidades separadas, elimina los
+módulos monolíticos y añade una guardia que impide que cualquier módulo de producción supere
+las 250 líneas con contenido. Las fases 1 a 7 están implementadas y la fase 8 documenta la
+regla; el detalle está en `specs/006-code-organization/tasks.md`.
+
+### Spec 005 — completada
+
+Spec 005 — Recordatorios locales por hábito. Las fases 1 a 8 están implementadas: lógica pura
+de validación y vencimiento (`reminders.py`), tabla `reminders` y entrega atómica
+(`persistence/reminders_repo.py`), estado del recordatorio (`state/app_state.py`), notificador
+y planificador del sistema (`notifications/`), servicio y runner periódico
+(`reminder_service.py`, `reminder_runner.py`), configuración en el encabezado del detalle y en
+`main` (`ui/reminder_dialog.py` y `app.py`), guardia de alcance y verificación final. El
+detalle está en `specs/005-local-reminders/tasks.md`.
 
 ### Spec 004 — completada
 
 Spec 004 — Aviso de registro duplicado y recuperación de racha. Las fases 1 a 5 (detección de
 huecos recuperables, estadísticas con días recuperados, persistencia de `recovered`, carga del
 estado, aviso de registro duplicado, panel y diálogo de recuperación, heatmap con estado propio y
-conexión en `main` de `core.py`, `storage.py`, `app_state.py`, `registration.py`, `theme.py` y
+conexión en `main` de `domain/`, `persistence/`, `state/`, `registration.py`, `theme.py` y
 `app.py`) están implementadas. La fase 6 añade la documentación, la verificación de la suite y la
-cobertura (314 pruebas en ese momento; `core.py` 99 %, `storage.py` 100 %, `app_state.py` 99 % y
-`registration.py` 91 %) y la guardia de alcance; el detalle está en
+cobertura (314 pruebas en ese momento) y la guardia de alcance; el detalle está en
 `specs/004-duplicate-warning-streak-recovery/tasks.md`.
 
 ### Spec 003 — completada
 
 | Fase | Descripción | Tareas | Estado |
 |------|-------------|:------:|--------|
-| Fase 1 | Dominio de edición (`core.py`) | 2 | ✅ Completada |
-| Fase 2 | Persistencia de edición y eliminación (`storage.py`) | 3 | ✅ Completada |
-| Fase 3 | Lógica del formulario de edición (`habit_form.py`) | 2 | ✅ Completada |
-| Fase 4 | Calendario y modo edición del modal (`app.py`) | 4 | ✅ Completada |
-| Fase 5 | Acciones del detalle y confirmación de borrado (`app.py`) | 4 | ✅ Completada |
+| Fase 1 | Dominio de edición (`domain/habits.py`) | 2 | ✅ Completada |
+| Fase 2 | Persistencia de edición y eliminación (`persistence/habits_repo.py`) | 3 | ✅ Completada |
+| Fase 3 | Lógica del formulario de edición (`forms/validation.py`) | 2 | ✅ Completada |
+| Fase 4 | Calendario y modo edición del modal (`ui/form_dialog.py`) | 4 | ✅ Completada |
+| Fase 5 | Acciones del detalle y confirmación de borrado (`ui/detail_header.py`, `ui/delete_dialog.py`) | 4 | ✅ Completada |
 | Fase 6 | Integración en `main` (`app.py`) | 3 | ✅ Completada |
 | Fase 7 | Documentación y verificación final | 3 | ✅ Completada |
 | **Total** | | **21** | **21 / 21 completadas** |
 
 Las Fases 1 a 6 de la spec 003 ya están implementadas: `update_habit` valida y actualiza el
-dominio, `storage.py` persiste la edición y el borrado transaccional, `habit_form.py` valida la
-edición, y el diálogo modal distingue creación y edición con un campo de fecha de solo lectura y
-calendario en español que bloquea los días futuros. El encabezado del detalle muestra las
-acciones “Editar” y “Eliminar” solo con un hábito seleccionado, el diálogo de confirmación
-advierte del borrado permanente y `main` conecta ambos flujos: la edición conserva la selección y
-los registros, y la eliminación recarga la lista o muestra el estado vacío. La spec 003 está
-completa: documentación (7.1), suite y cobertura (7.2) y verificación del alcance (7.3). El
-detalle de cada tarea, con sus RF y criterios “Hecho cuando”, está en
-`specs/003-edit-delete-habits/tasks.md`.
+dominio, `persistence/habits_repo.py` persiste la edición y el borrado transaccional,
+`forms/validation.py` valida la edición, y el diálogo modal distingue creación y edición con un
+campo de fecha de solo lectura y calendario en español que bloquea los días futuros. El
+encabezado del detalle muestra las acciones “Editar” y “Eliminar” solo con un hábito
+seleccionado, el diálogo de confirmación advierte del borrado permanente y `main` conecta ambos
+flujos: la edición conserva la selección y los registros, y la eliminación recarga la lista o
+muestra el estado vacío. La spec 003 está completa: documentación (7.1), suite y cobertura (7.2)
+y verificación del alcance (7.3). El detalle de cada tarea, con sus RF y criterios “Hecho
+cuando”, está en `specs/003-edit-delete-habits/tasks.md`.
+
+## Organización del código
+
+La spec 006 fija una regla única para todo el código de producción: **ningún módulo de
+`habits/` puede superar las 250 líneas con contenido**. La guardia de `tests/test_module_size.py`
+recorre el paquete real, descubre automáticamente los módulos nuevos y falla con un único
+mensaje que lista la ruta y el conteo de todos los infractores.
+
+### Cómo se cuentan las líneas
+
+El conteo usa `tokenize` y trabaja sobre líneas físicas:
+
+- No cuentan las líneas vacías ni las que solo tienen espacios en blanco.
+- No cuentan los comentarios de línea completa.
+- Sí cuenta cada línea ocupada por código, una docstring o cadenas multilínea, aunque el
+  texto se reparta en varias líneas.
+- Sí cuenta un comentario al final de una instrucción, una sola vez por línea.
+- Tampoco cuentan los saltos, la indentación ni las marcas de fin de archivo.
+
+El límite se aplica también a los archivos `__init__.py` y a cualquier subpaquete nuevo. Se
+excluyen del recorrido los directorios generados o de terceros: `__pycache__`, `.venv`, `venv`,
+`env`, `build`, `dist`, `node_modules`, `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`,
+`.eggs` y `.git`.
+
+### Responsabilidad de cada paquete
+
+| Ruta | Responsabilidad |
+|------|-----------------|
+| `habits/domain/` | Dominio puro: modelos, alta y edición de hábitos, rachas, días registrados, huecos recuperables y heatmap. No depende de Flet ni de SQLite. |
+| `habits/persistence/` | Persistencia SQLite: esquema, migraciones y repositorios de hábitos, registros diarios y recordatorios. |
+| `habits/state/` | Estado de la aplicación: carga desde persistencia y dominio, selección, tarjetas, heatmap y estado vacío. No depende de Flet. |
+| `habits/forms/` | Lógica del formulario: catálogo de iconos, validación y servicio de creación y edición, sin widgets. |
+| `habits/ui/` | Interfaz Flet: página, barra lateral, detalle, estadísticas, heatmap, paneles y diálogos. No accede a SQLite ni a los repositorios. |
+| `habits/notifications/` | Adaptadores del sistema: resultados y textos, comandos compartidos, notificador nativo y planificador periódico para macOS y Windows. |
+
+### Responsabilidad de los módulos de primer nivel
+
+| Módulo | Responsabilidad |
+|--------|-----------------|
+| `habits/app.py` | Punto de entrada: configura la página, monta el layout y conecta `main()` con los flujos de la interfaz. |
+| `habits/theme.py` | Tema visual: paleta, tipografía y dimensiones de la ventana. |
+| `habits/registration.py` | Registro del día actual y prevención de duplicados. |
+| `habits/reminders.py` | Lógica pura de recordatorios: hora, etiqueta y vencimiento. |
+| `habits/reminder_service.py` | Entrega de recordatorios vencidos sin depender de Flet. |
+| `habits/reminder_runner.py` | Entrada periódica que ejecuta el planificador del sistema. |
+| `habits/module_size.py` | Medición del límite de tamaño y búsqueda de módulos infractores. |
+
 
 ## Diseño de la interfaz
 
@@ -89,7 +143,7 @@ La ventana se divide en dos zonas sin desplazamiento horizontal: una barra later
 
 ### Lógica de dominio implementada
 
-Las siguientes funciones en `habits/core.py` están completas y testeadas:
+Las siguientes funciones en `habits/domain/` están completas y testeadas:
 
 - `create_habit(name, start_date, icon)` — crea un hábito con validaciones de nombre, fecha e icono.
 - `update_habit(habit, name, start_date, icon, today)` — actualiza nombre, fecha e icono conservando el ID, recorta el nombre y rechaza fechas futuras.
@@ -104,7 +158,7 @@ Las siguientes funciones en `habits/core.py` están completas y testeadas:
 
 ### Persistencia SQLite implementada
 
-Las siguientes funciones en `habits/storage.py` están completas y testeadas:
+Las siguientes funciones en `habits/persistence/` están completas y testeadas:
 
 - `init_db(db_path)` — crea las tablas `habits` y `completions` si no existen, y migra bases antiguas añadiendo las columnas `icon` (valor por defecto `book`) y `recovered` (valor por defecto `0`).
 - `create_habit_db(name, start_date, icon, db_path)` — inserta un hábito con su icono y retorna su ID.
@@ -120,9 +174,9 @@ Las siguientes funciones en `habits/storage.py` están completas y testeadas:
 
 ### Cargador de estado implementado
 
-Las siguientes piezas en `habits/app_state.py` están completas y testeadas:
+Las siguientes piezas en `habits/state/` están completas y testeadas:
 
-- `load_app_state(db_path, today)` — obtiene hábitos y fechas desde `storage.py`, calcula estadísticas con `core.py`, ordena por racha descendente y nombre ascendente, y selecciona el primer hábito.
+- `load_app_state(db_path, today)` — obtiene hábitos y fechas desde `persistence/`, calcula estadísticas con `domain/`, ordena por racha descendente y nombre ascendente, y selecciona el primer hábito.
 - `AppState` — mantiene la lista de hábitos, el ID seleccionado y la fecha usada para las estadísticas y el heatmap.
 - `HabitState` — agrupa un hábito, sus estadísticas, sus fechas completadas y el subconjunto de fechas recuperadas.
 - `AppState.stat_cards()` — devuelve las tres tarjetas con sus valores; “Días registrados” excluye los recuperados.
@@ -134,13 +188,15 @@ Este módulo no importa Flet: la interfaz solo consume el estado ya calculado (R
 
 ### Barra lateral implementada
 
-En `habits/app.py`:
+En `habits/ui/sidebar.py`:
 
 - `Sidebar` — barra lateral con “Mis hábitos”, el botón “+ Nuevo” y la lista de hábitos. Cada elemento muestra icono, nombre y racha; el seleccionado se resalta con fondo verde y un indicador lateral.
 - `icon_for_habit(icon_key)` — traduce la clave semántica del icono a un icono de Flet.
 - `format_streak_label(streak)` — formatea la racha en español (“Sin racha”, “🔥 1 día”, “🔥 2 días”).
 
 ### Encabezado de detalle implementado
+
+En `habits/ui/detail_header.py`:
 
 - `AppState.detail_header()` — devuelve el icono, nombre, subtítulo “Hábito de estudio” y fecha de inicio en dd/mm/aaaa del hábito seleccionado.
 - `DetailHeader` — datos puros del encabezado, sin dependencia de Flet.
@@ -158,12 +214,12 @@ En `habits/app.py`:
 ### Tema visual y ventana
 
 - `habits/theme.py` — paleta pura y dimensiones: fondo crema, superficies claras, acento verde, barra lateral de 280 px y ventana inicial de 1120×720 (mínimo 960×600).
-- `configure_page(page)` en `habits/app.py` — aplica `ThemeMode.LIGHT`, el color semilla verde, el fondo crema y el tamaño mínimo de ventana.
+- `configure_page(page)` en `habits/ui/page.py` — aplica `ThemeMode.LIGHT`, el color semilla verde, el fondo crema y el tamaño mínimo de ventana.
 - `main()` — monta el layout de dos zonas: barra lateral y panel de detalle, sin scroll horizontal.
 
 ### Creación de hábitos con diálogo modal
 
-- `habits/habit_form.py` — lógica pura del formulario, sin Flet:
+- `habits/forms/` — lógica pura del formulario, sin Flet:
   - `ICON_CATALOG` e `ICON_LABELS` — catálogo de iconos con su etiqueta en español.
   - `parse_start_date(value, today)` — interpreta `dd/mm/aaaa`; sin fecha o con fecha futura usa hoy y rechaza formatos o fechas inexistentes.
   - `validate_habit_form(data, today)` — exige nombre de 1 a 60 caracteres y normaliza fecha e icono.
@@ -171,8 +227,8 @@ En `habits/app.py`:
   - `UpdateHabitResult` — resultado de una edición con su ID y los datos guardados.
   - `validate_habit_update(habit, data, today)` — reutiliza las reglas de nombre, conserva la fecha y el icono actuales y rechaza fechas futuras.
   - `update_habit_from_form(habit, data, db_path, today)` — valida la edición, delega en `update_habit` y `update_habit_db` y no modifica los registros diarios.
-- `HabitFormDialog` en `habits/app.py` — diálogo modal con nombre, campo de fecha de solo lectura y selector de icono. En creación precarga hoy; en edición precarga nombre, icono y fecha del hábito y cambia el título a “Editar hábito”. El calendario usa español, bloquea los días futuros y solo actualiza la fecha al confirmar. Ante un error permanece abierto y al guardar se cierra y notifica el resultado.
-- `DeleteHabitDialog` en `habits/app.py` — diálogo modal de confirmación que muestra el nombre del hábito, advierte de que el borrado es permanente e incluye sus registros, ofrece “Cancelar” y “Eliminar” y solo notifica el ID al confirmar; la persistencia queda en `main`.
+- `HabitFormDialog` en `habits/ui/form_dialog.py` — diálogo modal con nombre, campo de fecha de solo lectura y selector de icono. En creación precarga hoy; en edición precarga nombre, icono y fecha del hábito y cambia el título a “Editar hábito”. El calendario usa español, bloquea los días futuros y solo actualiza la fecha al confirmar. Ante un error permanece abierto y al guardar se cierra y notifica el resultado.
+- `DeleteHabitDialog` en `habits/ui/delete_dialog.py` — diálogo modal de confirmación que muestra el nombre del hábito, advierte de que el borrado es permanente e incluye sus registros, ofrece “Cancelar” y “Eliminar” y solo notifica el ID al confirmar; la persistencia queda en `main`.
 - `main()` — conecta “Editar” con el modal precargado y “Eliminar” con la confirmación. Guardar una edición conserva la selección y los registros; confirmar el borrado recarga la barra lateral y el detalle, o muestra el estado vacío. Un fallo de persistencia al borrar muestra un aviso y conserva el hábito.
 - `main()` — “+ Nuevo” y “+ Crear hábito” abren el mismo modal; al crear, recarga el estado, actualiza la barra lateral y selecciona el hábito nuevo para mostrar su detalle.
 - `main()` monta el layout con `page.add(...)` sobre la vista raíz de la página; el diálogo modal solo se renderiza si la vista raíz se conserva válida.
@@ -184,7 +240,7 @@ La spec 003 añade la edición y el borrado desde el panel de detalle:
 - **Editar** — el botón “Editar” abre el modal “Editar hábito” con los datos actuales precargados. El nombre y el icono se validan con las reglas de creación; la fecha solo se cambia con el calendario. Guardar conserva el hábito seleccionado y todos sus registros diarios, aunque cambie su posición en la lista. Cancelar no modifica nada.
 - **Eliminar** — el botón “Eliminar” abre un diálogo de confirmación con el nombre y la advertencia de que el borrado es permanente e incluye los registros diarios. Nada se borra hasta confirmar; `delete_habit_db` elimina el hábito y sus registros en una transacción. Después se selecciona el primer hábito de la lista restante o se muestra el estado vacío, y un fallo de persistencia conserva el hábito y muestra un aviso.
 - **Calendario** — el campo de fecha es de solo lectura y muestra `dd/mm/aaaa`; el calendario usa español (semana de lunes a domingo) y deshabilita los días futuros.
-- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 228 pruebas puras + 86 con Flet (314 en `.venv`).
+- **Pruebas** — la suite cubre dominio, persistencia, recuperación de rachas, formulario, diálogos y flujos integrados: 428 pruebas puras + 121 con Flet (549 en `.venv`).
 
 ## Iconos
 
@@ -202,7 +258,7 @@ icono de Flet con `icon_for_habit()`. El valor por defecto es `book`.
 | `math` | Matemáticas | `CALCULATE` |
 | `fitness` | Ejercicio | `FITNESS_CENTER` |
 
-El catálogo visible se define en `ICON_CATALOG` e `ICON_LABELS` (`habits/habit_form.py`). Un
+El catálogo visible se define en `ICON_CATALOG` e `ICON_LABELS` (`habits/forms/models.py`). Un
 icono desconocido o una base antigua sin icono se resuelven con `book`.
 
 ### Estadísticas y heatmap
@@ -211,7 +267,7 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
 - `HabitStatsCards` — muestra “Racha actual”, “Mejor racha” y “Días registrados”; sin registros, las tres valen 0.
 - `ActivityHeatmap` — cuadrícula de 7 filas (lunes a domingo) por 5 columnas (semanas), con la celda de hoy resaltada, los días futuros atenuados, los días recuperados en ámbar y la leyenda “No completado / Completado / Recuperado”.
 - `refresh_views()` en `main()` — recarga el estado y refresca barra lateral, encabezado, tarjetas, heatmap, panel de registro y estado vacío. Al registrar el día actual, todas las zonas se actualizan sin reiniciar la aplicación.
-- Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `core.py` y `app_state.py` nunca reciben atributos internos de control.
+- Los campos de estado y de modelo (`state`, `cards`, `rows`) usan `skip_field()` para quedar fuera del árbol de serialización de Flet; así los dataclasses frozen de `domain/` y `state/` nunca reciben atributos internos de control.
 
 ### Registro del día actual
 
@@ -220,8 +276,8 @@ icono desconocido o una base antigua sin icono se resuelven con `book`.
   - `is_registered_today(habit_id, today, db_path)` — consulta si ya existe el registro del día.
   - `register_today(habit_id, today, db_path)` — persiste el completado de hoy y devuelve “✅ Registro guardado”; si ya existía, devuelve “Ya registrado hoy” sin crear un duplicado.
   - `duplicate_warning(habit_name)` — construye el texto “⚠️ «nombre» ya está registrado hoy.” para el aviso emergente.
-- `TodayRegistrationPanel` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy” y, si el hueco más reciente es de uno o dos días, ofrece “Recuperar racha”.
-- `StreakRecoveryDialog` — diálogo modal que muestra el hábito y los días que se recuperarán, advierte de que cuentan para la racha pero no para “Días registrados”, permite cancelar sin cambios y solo notifica al confirmar.
+- `TodayRegistrationPanel` en `habits/ui/registration_panel.py` — panel “Registrar hoy” con la fecha en dd/mm/aaaa y un botón “Guardar”. No incluye selector de fecha, minutos ni “Quitar registro”; cuando el hábito ya está completado muestra “Ya registrado hoy” y, si el hueco más reciente es de uno o dos días, ofrece “Recuperar racha”.
+- `StreakRecoveryDialog` en `habits/ui/recovery_dialog.py` — diálogo modal que muestra el hábito y los días que se recuperarán, advierte de que cuentan para la racha pero no para “Días registrados”, permite cancelar sin cambios y solo notifica al confirmar.
 - `main()` — al pulsar “Guardar” registra la fecha actual, muestra la confirmación y refresca la barra lateral, las estadísticas, el heatmap y el propio panel. Si el día ya estaba registrado, muestra un `SnackBar` no bloqueante con el nombre del hábito y no crea filas adicionales. Al pulsar “Recuperar racha” abre el diálogo con el hueco calculado; al confirmar, `mark_recovered_days_db` guarda los días de forma transaccional, conserva el hábito seleccionado y refresca racha, “Días registrados” y heatmap. Si la persistencia falla, muestra un aviso y no recarga la vista. Los datos permanecen al reiniciar la aplicación.
 
 ### Aviso de registro duplicado
@@ -282,8 +338,8 @@ sin recordatorios.
 `tests/test_notifications.py`, `tests/test_reminder_widgets.py`, `tests/test_reminder_flow.py`,
 `tests/test_readme_reminders.py`, `tests/test_scope_guard_005.py` y
 `tests/test_final_verification_005.py` cubren la lógica, la persistencia, la entrega, el
-planificador, la interfaz y la verificación final. La suite actual suma 354 pruebas puras +
-113 con Flet (467 en `.venv`).
+planificador, la interfaz y la verificación final. La suite actual suma 428 pruebas puras +
+121 con Flet (549 en `.venv`).
 
 ## Requisitos
 
@@ -353,9 +409,9 @@ Con cobertura:
 pytest --cov=habits --cov-report=term-missing
 ```
 
-Cobertura actual de los módulos con lógica: `core.py` 99 %, `storage.py` 100 % y
-`habit_form.py` 96 % (total del paquete 84 %). La interfaz (`app.py`) se valida con tests de
-widgets y comprobación manual.
+Cobertura actual de los paquetes con lógica: `domain/`, `persistence/`, `state/`, `forms/`,
+`registration.py`, `reminders.py`, `reminder_service.py` y `reminder_runner.py`. La interfaz
+(`ui/` y `app.py`) se valida con tests de widgets y comprobación manual.
 
 ## Generar ejecutable de producción
 
@@ -399,51 +455,96 @@ Para más opciones, consulta la [documentación de `flet pack`](https://flet.dev
 ```
 habits/
 ├── __init__.py
-├── core.py          # Lógica de dominio: modelos y cálculo de racha
-├── storage.py       # Persistencia SQLite: CRUD, registros y recordatorios
-├── app_state.py     # Cargador de estado: une storage y core sin Flet
-├── habit_form.py    # Validación y persistencia del formulario modal
-├── registration.py  # Registro del día actual y prevención de duplicados
-├── reminders.py     # Lógica pura de recordatorios: hora, etiqueta y vencimiento
-├── reminder_service.py # Entrega de recordatorios vencidos sin depender de Flet
-├── reminder_runner.py  # Entrada periódica del planificador del sistema
-├── notifications.py # Notificador y planificador macOS/Windows
-├── theme.py         # Tema visual y dimensiones de ventana
-└── app.py           # Interfaz Flet: barra lateral, detalle, modales y registro
+├── app.py                       # Punto de entrada: monta la interfaz y conecta main()
+├── theme.py                     # Tema visual y dimensiones de ventana
+├── registration.py              # Registro del día actual y prevención de duplicados
+├── reminders.py                 # Lógica pura de recordatorios: hora, etiqueta y vencimiento
+├── reminder_service.py          # Entrega de recordatorios vencidos sin depender de Flet
+├── reminder_runner.py           # Entrada periódica del planificador del sistema
+├── module_size.py               # Límite de tamaño y búsqueda de módulos infractores
+├── domain/
+│   ├── __init__.py
+│   ├── models.py                # Habit, HabitStats, HeatmapDay y RecoverableGap
+│   ├── habits.py                # Alta, edición y marcado de completados
+│   ├── streaks.py               # Rachas, días registrados y orden de hábitos
+│   ├── recovery.py              # Huecos recuperables y estadísticas con recuperados
+│   └── heatmap.py               # Celdas del heatmap de actividad
+├── persistence/
+│   ├── __init__.py
+│   ├── schema.py                # Creación y migración del esquema SQLite
+│   ├── habits_repo.py           # CRUD de hábitos
+│   ├── completions_repo.py      # Registros diarios y días recuperados
+│   └── reminders_repo.py        # Configuración de recordatorios
+├── state/
+│   ├── __init__.py
+│   ├── models.py                # AppState, HabitState y modelos de vista
+│   ├── loader.py                # Carga del estado desde persistencia y dominio
+│   └── app_state.py             # Tarjetas, heatmap y estado vacío
+├── forms/
+│   ├── __init__.py
+│   ├── models.py                # Catálogo de iconos y resultados del formulario
+│   ├── validation.py            # Validación de creación y edición
+│   └── service.py               # Persistencia de las operaciones del formulario
+├── ui/
+│   ├── __init__.py
+│   ├── common.py                # Utilidades visuales compartidas
+│   ├── page.py                  # Configuración de la página y la ventana
+│   ├── sidebar.py               # Barra lateral de hábitos
+│   ├── detail_header.py         # Encabezado del detalle y acciones
+│   ├── stats.py                 # Tarjetas de estadísticas
+│   ├── heatmap.py               # Heatmap de actividad
+│   ├── registration_panel.py    # Panel “Registrar hoy”
+│   ├── empty.py                 # Estado vacío
+│   ├── form_dialog.py           # Diálogo de creación y edición
+│   ├── delete_dialog.py         # Confirmación de borrado
+│   ├── recovery_dialog.py       # Diálogo de recuperación de racha
+│   └── reminder_dialog.py       # Configuración del recordatorio
+└── notifications/
+    ├── __init__.py
+    ├── models.py                # Resultados y textos en español
+    ├── common.py                # Comandos y escapado compartidos
+    ├── notifier.py              # Notificador nativo de macOS y Windows
+    └── scheduler.py             # Tarea periódica del sistema
 tests/
 ├── conftest.py      # Dobles inertes del planificador y notificador para la suite
-├── test_core.py     # Tests de lógica de dominio (52 tests)
-├── test_recovery.py # Tests de huecos recuperables y días recuperados (16 tests)
-├── test_storage.py  # Tests de persistencia (44 tests)
-├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío (20 tests)
-├── test_theme.py    # Tests del tema y la ventana (3 tests)
-├── test_habit_form.py # Tests del formulario modal (41 tests)
-├── test_stats_heatmap.py # Tests de estadísticas y heatmap (12 tests)
-├── test_registration.py # Tests del registro del día actual (11 tests)
+├── test_architecture.py # Sin ciclos, sin Flet en la lógica y módulos monolíticos ausentes
+├── test_module_size.py # Reglas de conteo y guardia global de 250 líneas
+├── test_core.py     # Tests de lógica de dominio
+├── test_recovery.py # Tests de huecos recuperables y días recuperados
+├── test_storage.py  # Tests de persistencia
+├── test_app_state.py # Tests del estado, barra lateral, detalle y vacío
+├── test_theme.py    # Tests del tema y la ventana
+├── test_habit_form.py # Tests del formulario modal
+├── test_stats_heatmap.py # Tests de estadísticas y heatmap
+├── test_registration.py # Tests del registro del día actual
 ├── test_reminders.py # Tests de la lógica pura de recordatorios
 ├── test_reminder_service.py # Tests de la entrega de recordatorios
 ├── test_reminder_runner.py # Tests del runner periódico
 ├── test_notifications.py # Tests del notificador y planificador simulados
-├── test_readme.py   # Tests de la documentación del rediseño (8 tests)
-├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado (5 tests)
-├── test_readme_recovery.py # Tests de la documentación del aviso y la recuperación (4 tests)
-├── test_readme_reminders.py # Tests de la documentación de los recordatorios (4 tests)
-├── test_final_verification.py # RFN-5, RFN-6 y RFN-7 (2 tests puros + 1 con Flet)
-├── test_final_verification_005.py # Criterios de finalización de la spec 005 (9 tests)
-├── test_scope_guard.py # Guardia de alcance de la spec 002 (3 tests)
-├── test_scope_guard_003.py # Guardia de alcance de la spec 003 (4 tests)
-├── test_scope_guard_004.py # Guardia de alcance de la spec 004 (3 tests)
-├── test_scope_guard_005.py # Guardia de alcance de la spec 005 (4 tests)
-├── test_window_icon.py # Icono personalizado de la ventana (3 tests, requiere .venv)
-├── test_empty_state_layout.py # Centrado del estado vacío (2 tests, requiere .venv)
-├── test_habit_dialog.py # Tests del diálogo Flet (19 tests, requiere .venv)
-├── test_edit_delete_flow.py # Tests del flujo integrado de edición y borrado (7 tests, requiere .venv)
-├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (22 tests, requiere .venv)
-├── test_registration_widgets.py # Tests del panel, aviso de duplicado y diálogo de recuperación (21 tests, requiere .venv)
-├── test_recovery_flow.py # Tests del flujo integrado de recuperación (5 tests, requiere .venv)
-├── test_reminder_widgets.py # Tests del encabezado y del diálogo de recordatorio (18 tests, requiere .venv)
-├── test_reminder_flow.py # Tests del flujo integrado de recordatorios (9 tests, requiere .venv)
-└── test_serialization.py # Regresión de serialización Flet (6 tests, requiere .venv)
+├── test_readme.py   # Tests de la documentación del rediseño
+├── test_readme_edit_delete.py # Tests de la documentación de edición y borrado
+├── test_readme_recovery.py # Tests de la documentación del aviso y la recuperación
+├── test_readme_reminders.py # Tests de la documentación de los recordatorios
+├── test_readme_organization.py # Tests de la documentación de la spec 006
+├── test_final_verification.py # RFN-5, RFN-6 y RFN-7
+├── test_final_verification_005.py # Criterios de finalización de la spec 005
+├── test_scope_guard.py # Guardia de alcance de la spec 002
+├── test_scope_guard_003.py # Guardia de alcance de la spec 003
+├── test_scope_guard_004.py # Guardia de alcance de la spec 004
+├── test_scope_guard_005.py # Guardia de alcance de la spec 005
+├── test_window_icon.py # Icono personalizado de la ventana (requiere .venv)
+├── test_empty_state_layout.py # Centrado del estado vacío (requiere .venv)
+├── test_habit_dialog.py # Tests del diálogo Flet (requiere .venv)
+├── test_edit_delete_flow.py # Tests del flujo integrado de edición y borrado (requiere .venv)
+├── test_detail_widgets.py # Tests de tarjetas, heatmap y acciones del detalle (requiere .venv)
+├── test_registration_widgets.py # Tests del panel, aviso de duplicado y recuperación (requiere .venv)
+├── test_recovery_flow.py # Tests del flujo integrado de recuperación (requiere .venv)
+├── test_reminder_widgets.py # Tests del encabezado y del diálogo de recordatorio (requiere .venv)
+├── test_reminder_flow.py # Tests del flujo integrado de recordatorios (requiere .venv)
+├── test_serialization.py # Regresión de serialización Flet (requiere .venv)
+├── test_ui_architecture.py # Arquitectura y tamaño de los módulos de interfaz
+├── test_ui_common.py # Utilidades visuales compartidas
+└── test_app_entry_point.py # Punto de entrada y configuración de la página
 scripts/
 ├── prepare_macos_bundle.py # Prepara el cliente de Flet con el icono en macOS
 └── seed_demo_data.py # Generador de datos de demostración (2 semanas, 8 iconos)
@@ -466,17 +567,21 @@ specs/
 │   ├── plan.md      # Plan técnico de estadísticas, heatmap e iconos
 │   └── tasks.md     # Checklist de implementación del rediseño
 ├── 003-edit-delete-habits/
-    ├── spec.md      # Especificación de edición y eliminación
-    ├── plan.md      # Plan técnico de actualización, borrado y calendario
-    └── tasks.md     # Checklist de implementación
+│   ├── spec.md      # Especificación de edición y eliminación
+│   ├── plan.md      # Plan técnico de actualización, borrado y calendario
+│   └── tasks.md     # Checklist de implementación
 ├── 004-duplicate-warning-streak-recovery/
 │   ├── spec.md      # Especificación del aviso y la recuperación de rachas
 │   ├── plan.md      # Plan técnico de huecos, recuperación y heatmap
 │   └── tasks.md     # Checklist de implementación
-└── 005-local-reminders/
-    ├── spec.md      # Especificación de recordatorios locales por hábito
-    ├── plan.md      # Plan técnico de persistencia, entrega y planificador
-    └── tasks.md     # Checklist de implementación
+├── 005-local-reminders/
+│   ├── spec.md      # Especificación de recordatorios locales por hábito
+│   ├── plan.md      # Plan técnico de persistencia, entrega y planificador
+│   └── tasks.md     # Checklist de implementación
+└── 006-code-organization/
+    ├── spec.md      # Especificación de organización y límite de tamaño
+    ├── plan.md      # Plan técnico de paquetes, guardias y documentación
+    └── tasks.md     # Checklist de implementación de la reorganización
 ```
 
 ## Documentación
@@ -495,6 +600,9 @@ specs/
 - **Especificación 005** — `specs/005-local-reminders/spec.md`: recordatorios locales por hábito con hora configurable.
 - **Plan 005** — `specs/005-local-reminders/plan.md`: persistencia, entrega, runner y planificador del sistema.
 - **Tareas 005** — `specs/005-local-reminders/tasks.md`: checklist de implementación de los recordatorios.
+- **Especificación 006** — `specs/006-code-organization/spec.md`: organización del código y límite de tamaño por módulo.
+- **Plan 006** — `specs/006-code-organization/plan.md`: paquetes por responsabilidad, guardias y documentación.
+- **Tareas 006** — `specs/006-code-organization/tasks.md`: checklist de implementación de la reorganización.
 - **Plan de implementación** — `specs/001-habits-mvp/plan.md`: arquitectura, modelo de datos y decisiones técnicas.
 - **Tareas** — `specs/001-habits-mvp/tasks.md`: checklist de tareas con criterios de aceptación.
 

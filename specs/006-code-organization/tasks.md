@@ -196,19 +196,19 @@
 
 ## Fase 8: Documentación
 
-- [ ] **Tarea 8.1:** Escribir o ajustar los tests de documentación
+- [x] **Tarea 8.1:** Escribir o ajustar los tests de documentación
   - **RF:** RF-4.1, RF-4.2, RF-4.3, RF-4.4
   - **Hecho cuando:** Los tests comprueban que la documentación describe el límite de 250 líneas,
     la forma de contar, las exclusiones, la responsabilidad de cada paquete y los conteos reales
     de la suite; la suite muestra los fallos esperados.
 
-- [ ] **Tarea 8.2:** Actualizar `README.md`
+- [x] **Tarea 8.2:** Actualizar `README.md`
   - **RF:** RF-4.1, RF-4.2, RF-4.3
   - **Hecho cuando:** El README incluye la regla de tamaño, la forma de contar, los archivos
     excluidos, la estructura de `habits/` con la responsabilidad de cada módulo y los conteos
     actualizados de pruebas.
 
-- [ ] **Tarea 8.3:** Revisar la documentación de las specs
+- [x] **Tarea 8.3:** Revisar la documentación de las specs
   - **RF:** RF-4.4
   - **Hecho cuando:** `spec.md`, `plan.md` y `tasks.md` de la spec 006 reflejan el estado final,
     las decisiones aplicadas y las tareas completadas.

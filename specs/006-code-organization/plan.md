@@ -11,6 +11,9 @@ habits/
 ├── app.py                       # Punto de entrada y conexión de main()
 ├── theme.py                     # Paleta y dimensiones (sin cambios)
 ├── registration.py              # Registro del día (sin cambios de responsabilidad)
+├── reminders.py                 # Lógica pura de recordatorios
+├── reminder_service.py          # Entrega de recordatorios vencidos
+├── reminder_runner.py           # Entrada periódica del planificador
 ├── module_size.py               # Medición y búsqueda de módulos sobredimensionados
 ├── domain/
 │   ├── models.py                # Habit, HabitStats, HeatmapDay, RecoverableGap
@@ -21,7 +24,8 @@ habits/
 ├── persistence/
 │   ├── schema.py                # init_db, HabitRow y migraciones
 │   ├── habits_repo.py           # CRUD de hábitos
-│   └── completions_repo.py      # Registros, recuperados y consultas
+│   ├── completions_repo.py      # Registros, recuperados y consultas
+│   └── reminders_repo.py        # Configuración de recordatorios
 ├── state/
 │   ├── models.py                # HabitState, SidebarItem, DetailHeader y tarjetas
 │   ├── app_state.py             # AppState y sus vistas derivadas
@@ -30,21 +34,28 @@ habits/
 │   ├── models.py                # Datos, resultados, constantes e iconos
 │   ├── validation.py            # Fechas, nombre e icono
 │   └── service.py               # Crear y actualizar desde el formulario
-└── ui/
-    ├── common.py                # Iconos, etiquetas y formatos visuales
-    ├── page.py                  # configure_page y configuración de ventana
-    ├── sidebar.py               # Sidebar
-    ├── detail_header.py         # HabitDetailHeader
-    ├── stats.py                 # HabitStatsCards
-    ├── heatmap.py               # ActivityHeatmap
-    ├── registration_panel.py    # TodayRegistrationPanel
-    ├── empty.py                 # EmptyDetailPanel
-    ├── form_dialog.py           # HabitFormDialog
-    ├── delete_dialog.py         # DeleteHabitDialog
-    └── recovery_dialog.py       # StreakRecoveryDialog
+├── ui/
+│   ├── common.py                # Iconos, etiquetas y formatos visuales
+│   ├── page.py                  # configure_page y configuración de ventana
+│   ├── sidebar.py               # Sidebar
+│   ├── detail_header.py         # HabitDetailHeader
+│   ├── stats.py                 # HabitStatsCards
+│   ├── heatmap.py               # ActivityHeatmap
+│   ├── registration_panel.py    # TodayRegistrationPanel
+│   ├── empty.py                 # EmptyDetailPanel
+│   ├── form_dialog.py           # HabitFormDialog
+│   ├── delete_dialog.py         # DeleteHabitDialog
+│   ├── recovery_dialog.py       # StreakRecoveryDialog
+│   └── reminder_dialog.py       # ReminderDialog
+└── notifications/
+    ├── models.py                # Resultados y textos en español
+    ├── common.py                # Comandos y escapado compartidos
+    ├── notifier.py              # SystemNotifier
+    └── scheduler.py             # SystemScheduler
 tests/
 ├── test_module_size.py          # Reglas de conteo y guardia global
 ├── test_architecture.py         # Separación de capas y ausencia de ciclos
+├── test_readme_organization.py  # Documentación de la regla y de la estructura
 └── ...                          # Tests existentes con imports migrados
 ```
 
@@ -82,6 +93,51 @@ tests/
 
 Los valores son estimaciones basadas en el código actual. Cualquier módulo que supere 250
 líneas con contenido durante la implementación se divide antes de continuar.
+
+---
+
+## Estado final de la implementación
+
+Las fases 1 a 8 están completadas y la fase 9 queda pendiente para la verificación final de la
+suite y la cobertura.
+
+### Decisiones aplicadas
+
+1. **Medición con `tokenize`.** `habits/module_size.py` cuenta líneas físicas ocupadas por
+   tokens de contenido, ignora vacías, comentarios completos, saltos, indentación y fin de
+   archivo, y aplica el límite también a `__init__.py` y subpaquetes.
+2. **Paquetes por capa y responsabilidad.** Se crearon `domain`, `persistence`, `state`, `forms`
+   y `ui`; además, `notifications` se separó al superar el límite tras la spec 005.
+3. **División de `notifications.py`.** El módulo se sustituyó por `notifications/models.py`
+   (resultados y textos), `common.py` (comandos y escapado), `notifier.py` (`SystemNotifier`) y
+   `scheduler.py` (`SystemScheduler`) durante la Tarea 7.4.
+4. **Sin fachadas.** `core.py`, `storage.py`, `app_state.py`, `habit_form.py` y
+   `notifications.py` se eliminaron; todos los imports apuntan al módulo de responsabilidad.
+5. **Guardias en la suite normal.** `test_module_size.py` recorre el paquete real y
+   `test_architecture.py` comprueba la separación de capas, la ausencia de ciclos, la
+   desaparición de los monolíticos y la división de los adaptadores.
+6. **Documentación verificada.** `tests/test_readme_organization.py` comprueba el límite, la
+   forma de contar, las exclusiones, la responsabilidad de cada paquete, los conteos y el estado
+   final de esta spec.
+
+### Resultado
+
+- Ningún módulo de producción supera las 250 líneas con contenido. El mayor es
+  `habits/persistence/reminders_repo.py` con 248 líneas.
+- La suite queda en 428 pruebas puras + 121 con Flet (549 en `.venv`).
+- La estructura final incluye `persistence/reminders_repo.py`, `ui/reminder_dialog.py` y los
+  módulos `reminders.py`, `reminder_service.py` y `reminder_runner.py` de la spec 005, además
+  del paquete `habits/notifications/`.
+
+### Desviaciones respecto al plan inicial
+
+- La estructura inicial no incluía `notifications/`; se añadió al dividir el módulo que superaba
+  el límite.
+- `persistence/reminders_repo.py` y `ui/reminder_dialog.py` se incorporaron con los
+  recordatorios de la spec 005.
+- Los tests de arquitectura finales incluyen casos específicos de la división de
+  `notifications/` y de la ausencia de imports antiguos, además de los casos previstos
+  inicialmente.
 
 ---
 
@@ -265,14 +321,27 @@ regresiones, igual que el límite de tamaño (RF-2.2, RF-2.6 y RFN-6).
 
 | Prueba | RF cubierto | Descripción |
 |--------|-------------|-------------|
-| `test_count_ignores_blank_and_comment_lines` | RF-1.2, RF-1.3 | Vacías y comentarios completos no cuentan. |
-| `test_count_includes_code_docstrings_and_inline_comments` | RF-1.4 | Código, docstrings y comentarios al final cuentan. |
-| `test_count_handles_comment_like_lines_inside_docstrings` | RF-1.4 | Una línea `#` dentro de una docstring cuenta. |
-| `test_exactly_250_content_lines_passes` | RF-1.5 | El límite es inclusivo. |
-| `test_251_content_lines_fails` | RF-1.5 | Un módulo por encima falla. |
+| `test_count_ignores_blank_and_whitespace_lines` | RF-1.2 | Vacías y solo espacios no cuentan. |
+| `test_count_ignores_full_line_comments_with_and_without_indentation` | RF-1.3 | Comentarios completos no cuentan. |
+| `test_count_includes_code_and_inline_comments` | RF-1.4 | Código y comentarios al final cuentan. |
+| `test_count_includes_docstring_lines` | RF-1.4 | Cada línea de una docstring cuenta. |
+| `test_count_handles_comment_like_line_inside_docstring` | RF-1.4 | Una línea `#` dentro de una docstring cuenta. |
+| `test_count_includes_multiline_strings` | RF-1.4 | Las cadenas multilínea cuentan por línea. |
+| `test_count_returns_zero_for_only_comments_and_blank_lines` | RF-1.2, RF-1.3 | Un archivo sin contenido cuenta 0. |
+| `test_exactly_250_content_lines_meets_limit` | RF-1.5 | El límite es inclusivo. |
+| `test_251_content_lines_exceeds_limit` | RF-1.5 | Un módulo por encima falla. |
 | `test_find_oversized_modules_scans_recursively` | RF-3.1, RF-3.6 | Encuentra archivos en subpaquetes. |
-| `test_find_oversized_modules_ignores_non_production_paths` | RF-3.5 | Ignora cachés y entornos virtuales. |
-| `test_current_production_modules_respect_limit` | RF-1.1, RF-3.1 | Guardia global sobre todos los módulos reales. |
+| `test_find_oversized_modules_detects_new_subpackages` | RF-3.6 | Detecta subpaquetes nuevos sin lista manual. |
+| `test_find_oversized_modules_ignores_caches_and_virtualenvs` | RF-3.5 | Ignora cachés y entornos virtuales. |
+| `test_find_oversized_modules_returns_offenders_in_stable_order` | RF-3.3 | Orden estable por ruta. |
+| `test_find_oversized_modules_returns_empty_when_all_fit` | RF-3.4 | Sin infractores cuando todo cumple. |
+| `test_find_oversized_modules_ignores_uninspectable_paths` | RF-3.5 | Omite rutas no legibles. |
+| `test_format_message_lists_all_offenders_with_path_and_count` | RF-3.3 | Un único mensaje con todos los infractores. |
+| `test_format_message_is_empty_when_all_modules_fit` | RF-3.4 | Sin mensaje cuando todo cumple. |
+| `test_guard_passes_without_output_when_all_modules_fit` | RF-3.4 | La guardia no emite advertencias. |
+| `test_guard_fails_with_all_offenders_in_one_message` | RF-3.3 | La guardia falla con todos juntos. |
+| `test_production_package_respects_content_line_limit` | RF-1.1, RF-3.1 | Guardia global sobre todos los módulos reales. |
+| `test_production_guard_lists_every_offender_in_one_message` | RF-3.3, RF-3.6 | La guardia real detecta y lista infractores. |
 
 ### Tests de arquitectura (`test_architecture.py`)
 
@@ -281,8 +350,17 @@ regresiones, igual que el límite de tamaño (RF-2.2, RF-2.6 y RFN-6).
 | `test_domain_persistence_and_state_do_not_import_flet` | RF-2.2, RFN-6 | La lógica no depende de widgets. |
 | `test_ui_does_not_import_sqlite_or_repositories` | RF-2.2, RFN-6 | La interfaz no accede a datos. |
 | `test_production_modules_have_no_import_cycles` | RF-2.6 | Detecta ciclos entre módulos. |
+| `test_cycle_detector_reports_a_cycle` | RF-2.6 | El detector distingue un ciclo real. |
+| `test_shared_scheduler_error_message_is_not_duplicated` | RF-2.7 | El aviso del planificador vive en un solo módulo. |
+| `test_notification_adapters_are_split_by_responsibility` | RF-1.8, RF-2.1 | El módulo sobredimensionado se dividió. |
+| `test_notification_classes_live_in_their_responsibility_module` | RF-2.1, RF-2.2 | Cada adaptador vive en su módulo. |
 | `test_old_monolithic_modules_are_removed` | RF-2.5 | No quedan fachadas ni archivos antiguos. |
-| `test_new_packages_are_importable` | RF-2.2 | Los paquetes y puntos de entrada existen. |
+| `test_old_module_imports_are_gone` | RF-2.5 | No quedan imports de las rutas antiguas. |
+| `test_logic_packages_are_importable` | RF-2.2 | Los paquetes de lógica existen. |
+| `test_notifications_package_is_importable` | RF-2.2 | El paquete de adaptadores existe. |
+| `test_ui_package_is_importable` | RF-2.2 | El paquete de interfaz existe. |
+| `test_ui_modules_are_importable` | RF-2.2 | Cada componente de la interfaz se importa. |
+| `test_entry_point_is_importable` | RF-2.2, RF-5.4 | El punto de entrada se importa. |
 
 ### Tests existentes migrados
 
@@ -294,6 +372,7 @@ regresiones, igual que el límite de tamaño (RF-2.2, RF-2.6 y RFN-6).
 | `test_habit_form.py` | Importa `forms` en lugar de `habit_form`. | RF-5.1, RF-5.3 |
 | Tests de widgets y flujos | Importan cada control desde `ui`. | RF-5.1, RF-5.4 |
 | Tests de alcance y documentación | Actualizan rutas y conteos. | RF-4.3, RF-5.5 |
+| `test_readme_organization.py` | Comprueba la regla, la estructura y el estado final de la spec 006. | RF-4.1, RF-4.2, RF-4.3, RF-4.4 |
 
 ### Cobertura objetivo
 
@@ -307,8 +386,8 @@ regresiones, igual que el límite de tamaño (RF-2.2, RF-2.6 y RFN-6).
 ### Ejecución
 
 ```bash
-.venv/bin/python -m pytest -q
-.venv/bin/python -m pytest --cov=habits --cov-report=term-missing -q
+.venv\Scripts\python.exe -m pytest -q
+.venv\Scripts\python.exe -m pytest --cov=habits --cov-report=term-missing -q
 ```
 
 ---

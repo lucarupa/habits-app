@@ -2,7 +2,7 @@
 
 ## Contexto y objetivo
 
-El proyecto ha crecido con las specs 001 a 004 y algunos módulos de producción concentran
+El proyecto ha crecido con las specs 001 a 005 y algunos módulos de producción concentran
 demasiadas responsabilidades y cientos de líneas. Un archivo grande dificulta localizar código,
 revisar cambios, escribir pruebas aisladas y evitar conflictos entre varias personas. El riesgo
 aumenta con la llegada de nuevas funcionalidades, como los recordatorios de la spec 005.
@@ -216,6 +216,24 @@ La funcionalidad se considera completa cuando se cumplen todas las condiciones s
 7. La documentación describe el límite, la forma de contar, las exclusiones y la nueva estructura
    de módulos.
 8. No se añadieron dependencias ni cambios en el esquema de datos.
+
+## Estado de implementación
+
+Las fases 1 a 8 están completadas: el medidor de tamaño, los paquetes `domain`,
+`persistence`, `state`, `forms`, `ui` y `notifications`, las guardias de arquitectura y de
+tamaño, y la documentación de la regla y de la estructura. La fase 9 queda pendiente para la
+verificación final de la suite y la cobertura.
+
+Decisiones aplicadas durante la implementación:
+
+- `habits/notifications.py` también superaba el límite tras la spec 005, así que se dividió en
+  `notifications/models.py`, `common.py`, `notifier.py` y `scheduler.py` (Tarea 7.4).
+- No se conservaron fachadas: todos los imports de producción y de tests apuntan al módulo de
+  su responsabilidad.
+- La guardia global descubre los módulos nuevos de forma recursiva y falla con un único
+  mensaje que lista ruta y conteo de todos los infractores.
+- La suite queda en 428 pruebas puras + 121 con Flet (549 en `.venv`), y el README documenta
+  el límite, la forma de contar, las exclusiones y la estructura final.
 
 ## Dudas abiertas
 
